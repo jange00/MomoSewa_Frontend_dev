@@ -1,41 +1,135 @@
-import { RouterProvider } from "react-router-dom";
-import { GoogleOAuthProvider } from "@react-oauth/google";
-import { Toaster } from "react-hot-toast";
-import { router } from "./routers/appRouter";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-// Replace with your actual Google OAuth Client ID
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "your-google-client-id-here";
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-const App = () => {
-  return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <RouterProvider router={router} />
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: "#333",
-            color: "#fff",
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: "#34A853",
-              secondary: "#fff",
-            },
-          },
-          error: {
-            duration: 4000,
-            iconTheme: {
-              primary: "#EA4335",
-              secondary: "#fff",
-            },
-          },
-        }}
-      />
-    </GoogleOAuthProvider>
-  );
-};
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
 
-export default App;
+@keyframes slide-in-left-delayed {
+  from {
+    opacity: 0;
+    transform: translateX(-50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes underline-expand {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 100%;
+    opacity: 0.6;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.8s ease-out;
+}
+
+.animate-slide-in-left-delayed {
+  animation: slide-in-left-delayed 0.8s ease-out 0.2s both;
+}
+
+.animate-underline-expand {
+  animation: underline-expand 0.8s ease-out 0.4s both;
+}
+
+.animate-scale-in {
+  animation: scale-in 1s ease-out 0.6s both;
+}
+
+@keyframes steam-1 {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-100px) scale(1.2);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-200px) scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes steam-2 {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-120px) scale(1.3);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-240px) scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes steam-3 {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-110px) scale(1.25);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-220px) scale(1.5);
+    opacity: 0;
+  }
+}
+
+.animate-steam-1 {
+  animation: steam-1 4s ease-out infinite;
+}
+
+.animate-steam-2 {
+  animation: steam-2 5s ease-out infinite 1s;
+}
+
+.animate-steam-3 {
+  animation: steam-3 4.5s ease-out infinite 0.5s;
+}

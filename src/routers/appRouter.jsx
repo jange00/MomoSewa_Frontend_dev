@@ -19,35 +19,35 @@ import CartPage from "../pages/CartPage";
 import CheckoutPage from "../pages/CheckoutPage";
 
 // Customer Dashboard Pages
-import CustomerDashboardPage from "../pages/customer/CustomerDashboardPage";
-import CustomerOrdersPage from "../pages/customer/CustomerOrdersPage";
-import CustomerOrderDetailPage from "../pages/customer/CustomerOrderDetailPage";
-import CustomerAddressesPage from "../pages/customer/CustomerAddressesPage";
-import CustomerReviewsPage from "../pages/customer/CustomerReviewsPage";
-import CustomerNotificationsPage from "../pages/customer/CustomerNotificationsPage";
-import CustomerProfilePage from "../pages/customer/CustomerProfilePage";
+// import CustomerDashboardPage from "../pages/customer/CustomerDashboardPage";
+// import CustomerOrdersPage from "../pages/customer/CustomerOrdersPage";
+// import CustomerOrderDetailPage from "../pages/customer/CustomerOrderDetailPage";
+// import CustomerAddressesPage from "../pages/customer/CustomerAddressesPage";
+// import CustomerReviewsPage from "../pages/customer/CustomerReviewsPage";
+// import CustomerNotificationsPage from "../pages/customer/CustomerNotificationsPage";
+// import CustomerProfilePage from "../pages/customer/CustomerProfilePage";
 
 // Vendor Dashboard Pages
-import VendorDashboardPage from "../pages/vendor/VendorDashboardPage";
-import VendorOrdersPage from "../pages/vendor/VendorOrdersPage";
-import VendorOrderDetailPage from "../pages/vendor/VendorOrderDetailPage";
-import VendorProductsPage from "../pages/vendor/VendorProductsPage";
-import VendorAnalyticsPage from "../pages/vendor/VendorAnalyticsPage";
-import VendorNotificationsPage from "../pages/vendor/VendorNotificationsPage";
-import VendorSettingsPage from "../pages/vendor/VendorSettingsPage";
-import VendorProfilePage from "../pages/vendor/VendorProfilePage";
-import VendorPendingApprovalPage from "../pages/vendor/VendorPendingApprovalPage";
+// import VendorDashboardPage from "../pages/vendor/VendorDashboardPage";
+// import VendorOrdersPage from "../pages/vendor/VendorOrdersPage";
+// import VendorOrderDetailPage from "../pages/vendor/VendorOrderDetailPage";
+// import VendorProductsPage from "../pages/vendor/VendorProductsPage";
+// import VendorAnalyticsPage from "../pages/vendor/VendorAnalyticsPage";
+// import VendorNotificationsPage from "../pages/vendor/VendorNotificationsPage";
+// import VendorSettingsPage from "../pages/vendor/VendorSettingsPage";
+// import VendorProfilePage from "../pages/vendor/VendorProfilePage";
+// import VendorPendingApprovalPage from "../pages/vendor/VendorPendingApprovalPage";
 
 // Admin Dashboard Pages
-import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
-import AdminOrdersPage from "../pages/admin/AdminOrdersPage";
-import AdminOrderDetailPage from "../pages/admin/AdminOrderDetailPage";
-import AdminUsersPage from "../pages/admin/AdminUsersPage";
-import AdminVendorsPage from "../pages/admin/AdminVendorsPage";
-import AdminAnalyticsPage from "../pages/admin/AdminAnalyticsPage";
-import AdminNotificationsPage from "../pages/admin/AdminNotificationsPage";
-import AdminSettingsPage from "../pages/admin/AdminSettingsPage";
-import AdminProfilePage from "../pages/admin/AdminProfilePage";
+// import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
+// import AdminOrdersPage from "../pages/admin/AdminOrdersPage";
+// import AdminOrderDetailPage from "../pages/admin/AdminOrderDetailPage";
+// import AdminUsersPage from "../pages/admin/AdminUsersPage";
+// import AdminVendorsPage from "../pages/admin/AdminVendorsPage";
+// import AdminAnalyticsPage from "../pages/admin/AdminAnalyticsPage";
+// import AdminNotificationsPage from "../pages/admin/AdminNotificationsPage";
+// import AdminSettingsPage from "../pages/admin/AdminSettingsPage";
+// import AdminProfilePage from "../pages/admin/AdminProfilePage";
 
 export const router = createBrowserRouter([
   {
@@ -78,30 +78,30 @@ export const router = createBrowserRouter([
         path: "/signup/customer",
         element: <CustomerSignupPage />,
       },
-      {
-        path: "/signup/vendor",
-        element: <VendorSignupPage />,
-      },
-       {
-        path: "/menu",
-        element: <MenuPage />,
-      },
-      {
-        path: "/signup/admin",
-        element: <AdminSignupPage />,
-      },
-      {
-        path: "/forgot-password",
-        element: <ForgotPasswordPage />,
-      },
-      {
-        path: "/cart",
-        element: <CartPage />,
-      },
-      {
-        path: "/checkout",
-        element: <CheckoutPage />,
-      },
+      // {
+      //   path: "/signup/vendor",
+      //   element: <VendorSignupPage />,
+      // },
+      //  {
+      //   path: "/menu",
+      //   element: <MenuPage />,
+      // },
+      // {
+      //   path: "/signup/admin",
+      //   element: <AdminSignupPage />,
+      // },
+      // {
+      //   path: "/forgot-password",
+      //   element: <ForgotPasswordPage />,
+      // },
+      // {
+      //   path: "/cart",
+      //   element: <CartPage />,
+      // },
+      // {
+      //   path: "/checkout",
+      //   element: <CheckoutPage />,
+      // },
     ],
   },
   // Customer Protected Routes
@@ -112,34 +112,34 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      {
-        path: "/customer/dashboard",
-        element: <CustomerDashboardPage />,
-      },
-      {
-        path: "/customer/orders",
-        element: <CustomerOrdersPage />,
-      },
-      {
-        path: "/customer/orders/:id",
-        element: <CustomerOrderDetailPage />,
-      },
-      {
-        path: "/customer/addresses",
-        element: <CustomerAddressesPage />,
-      },
-      {
-        path: "/customer/reviews",
-        element: <CustomerReviewsPage />,
-      },
-      {
-        path: "/customer/notifications",
-        element: <CustomerNotificationsPage />,
-      },
-      {
-        path: "/customer/profile",
-        element: <CustomerProfilePage />,
-      },
+      // {
+      //   path: "/customer/dashboard",
+      //   element: <CustomerDashboardPage />,
+      // },
+      // {
+      //   path: "/customer/orders",
+      //   element: <CustomerOrdersPage />,
+      // },
+      // {
+      //   path: "/customer/orders/:id",
+      //   element: <CustomerOrderDetailPage />,
+      // },
+      // {
+      //   path: "/customer/addresses",
+      //   element: <CustomerAddressesPage />,
+      // },
+      // {
+      //   path: "/customer/reviews",
+      //   element: <CustomerReviewsPage />,
+      // },
+      // {
+      //   path: "/customer/notifications",
+      //   element: <CustomerNotificationsPage />,
+      // },
+      // {
+      //   path: "/customer/profile",
+      //   element: <CustomerProfilePage />,
+      // },
     ],
   },
   // Vendor Protected Routes
@@ -150,42 +150,42 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      {
-        path: "/vendor/pending-approval",
-        element: <VendorPendingApprovalPage />,
-      },
-      {
-        path: "/vendor/dashboard",
-        element: <VendorDashboardPage />,
-      },
-      {
-        path: "/vendor/orders",
-        element: <VendorOrdersPage />,
-      },
-      {
-        path: "/vendor/orders/:id",
-        element: <VendorOrderDetailPage />,
-      },
-      {
-        path: "/vendor/products",
-        element: <VendorProductsPage />,
-      },
-      {
-        path: "/vendor/analytics",
-        element: <VendorAnalyticsPage />,
-      },
-      {
-        path: "/vendor/notifications",
-        element: <VendorNotificationsPage />,
-      },
-      {
-        path: "/vendor/settings",
-        element: <VendorSettingsPage />,
-      },
-      {
-        path: "/vendor/profile",
-        element: <VendorProfilePage />,
-      },
+      // {
+      //   path: "/vendor/pending-approval",
+      //   element: <VendorPendingApprovalPage />,
+      // },
+      // {
+      //   path: "/vendor/dashboard",
+      //   element: <VendorDashboardPage />,
+      // },
+      // {
+      //   path: "/vendor/orders",
+      //   element: <VendorOrdersPage />,
+      // },
+      // {
+      //   path: "/vendor/orders/:id",
+      //   element: <VendorOrderDetailPage />,
+      // },
+      // {
+      //   path: "/vendor/products",
+      //   element: <VendorProductsPage />,
+      // },
+      // {
+      //   path: "/vendor/analytics",
+      //   element: <VendorAnalyticsPage />,
+      // },
+      // {
+      //   path: "/vendor/notifications",
+      //   element: <VendorNotificationsPage />,
+      // },
+      // {
+      //   path: "/vendor/settings",
+      //   element: <VendorSettingsPage />,
+      // },
+      // {
+      //   path: "/vendor/profile",
+      //   element: <VendorProfilePage />,
+      // },
     ],
   },
   // Admin Protected Routes
@@ -196,42 +196,42 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      {
-        path: "/admin/dashboard",
-        element: <AdminDashboardPage />,
-      },
-      {
-        path: "/admin/orders",
-        element: <AdminOrdersPage />,
-      },
-      {
-        path: "/admin/orders/:id",
-        element: <AdminOrderDetailPage />,
-      },
-      {
-        path: "/admin/users",
-        element: <AdminUsersPage />,
-      },
-      {
-        path: "/admin/vendors",
-        element: <AdminVendorsPage />,
-      },
-      {
-        path: "/admin/analytics",
-        element: <AdminAnalyticsPage />,
-      },
-      {
-        path: "/admin/notifications",
-        element: <AdminNotificationsPage />,
-      },
-      {
-        path: "/admin/settings",
-        element: <AdminSettingsPage />,
-      },
-      {
-        path: "/admin/profile",
-        element: <AdminProfilePage />,
-      },
+      // {
+      //   path: "/admin/dashboard",
+      //   element: <AdminDashboardPage />,
+      // },
+      // {
+      //   path: "/admin/orders",
+      //   element: <AdminOrdersPage />,
+      // },
+      // {
+      //   path: "/admin/orders/:id",
+      //   element: <AdminOrderDetailPage />,
+      // },
+      // {
+      //   path: "/admin/users",
+      //   element: <AdminUsersPage />,
+      // },
+      // {
+      //   path: "/admin/vendors",
+      //   element: <AdminVendorsPage />,
+      // },
+      // {
+      //   path: "/admin/analytics",
+      //   element: <AdminAnalyticsPage />,
+      // },
+      // {
+      //   path: "/admin/notifications",
+      //   element: <AdminNotificationsPage />,
+      // },
+      // {
+      //   path: "/admin/settings",
+      //   element: <AdminSettingsPage />,
+      // },
+      // {
+      //   path: "/admin/profile",
+      //   element: <AdminProfilePage />,
+      // },
     ],
   },
 ]);
