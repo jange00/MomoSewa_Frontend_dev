@@ -32,7 +32,15 @@ const LoginForm = ({ formData, errors, isLoading, handleChange, handleSubmit, ha
 
         {/* Login Form */}
         <div className="bg-white rounded-xl border border-charcoal-grey/10 p-6 lg:p-8 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSubmit(e);
+            }} 
+            className="space-y-5"
+            noValidate
+          >
             {/* Email/Phone Input */}
             <Input
               label="Email or Phone"

@@ -42,7 +42,7 @@ const LoginPromo = () => {
             <p className="text-golden-amber text-sm font-semibold italic">
               "ताजा मोमो, तुरुन्त वितरण"
             </p>
-            <p className="text-white/60 text-xs mt-1">Fresh Momos, Instant Delivery</p>
+            <p className="text-white/60 text-xs mt-1">Fresh Momo, Instant Delivery</p>
           </div>
         </div>
 

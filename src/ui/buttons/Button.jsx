@@ -47,14 +47,24 @@ const Button = ({
     );
   }
   
+  // Extract type from props to avoid passing it twice
+  const { type, ...buttonProps } = props;
+  
   return (
-    <button onClick={onClick} className={classes} disabled={disabled} {...props}>
+    <button 
+      type={type || "button"} 
+      onClick={onClick} 
+      className={classes} 
+      disabled={disabled} 
+      {...buttonProps}
+    >
       {content}
     </button>
   );
 };
 
 export default Button;
+
 
 
 
