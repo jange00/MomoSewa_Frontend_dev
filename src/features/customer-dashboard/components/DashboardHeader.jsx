@@ -1,47 +1,39 @@
 import { useState, useEffect } from "react";
 import { FiMenu, FiBell, FiSearch } from "react-icons/fi";
 import { Link } from "react-router-dom";
+import { useGet } from "../../../hooks/useApi";
+import { API_ENDPOINTS } from "../../../api/config";
 
 const DashboardHeader = ({ onMenuClick }) => {
   const [notificationCount, setNotificationCount] = useState(0);
 
-  // Calculate notification count from localStorage
+  // Fetch unread notification count from API
+  const { data: unreadCountData } = useGet(
+    'notification-unread-count',
+    `${API_ENDPOINTS.NOTIFICATIONS}/unread-count`,
+    { 
+      showErrorToast: false,
+      refetchInterval: 30000, // Refetch every 30 seconds
+    }
+  );
+
+  // Update count from API or event
   useEffect(() => {
-    const stored = localStorage.getItem("customerNotifications");
-    if (stored) {
-      try {
-        const notifications = JSON.parse(stored);
-        const unreadCount = notifications.filter((n) => !n.isRead).length;
-        setNotificationCount(unreadCount);
-      } catch (e) {
-        setNotificationCount(3); // Fallback
-      }
-    } else {
-      setNotificationCount(3); // Default mock count
+    if (unreadCountData?.data?.count !== undefined) {
+      setNotificationCount(unreadCountData.data.count);
     }
 
-    // Listen for updates
+    // Listen for updates from notification pages
     const handleUpdate = () => {
-      const stored = localStorage.getItem("customerNotifications");
-      if (stored) {
-        try {
-          const notifications = JSON.parse(stored);
-          const unreadCount = notifications.filter((n) => !n.isRead).length;
-          setNotificationCount(unreadCount);
-        } catch (e) {
-          setNotificationCount(3);
-        }
-      }
+      // Refetch will happen automatically via React Query
     };
 
     window.addEventListener("customerNotificationsUpdated", handleUpdate);
-    window.addEventListener("storage", handleUpdate);
 
     return () => {
       window.removeEventListener("customerNotificationsUpdated", handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
     };
-  }, []);
+  }, [unreadCountData]);
 
   return (
     <header className="sticky top-0 z-30 bg-white/98 backdrop-blur-xl border-b border-charcoal-grey/10 shadow-sm">

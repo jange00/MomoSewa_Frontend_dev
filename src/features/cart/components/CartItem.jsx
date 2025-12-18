@@ -1,18 +1,21 @@
 import { FiMinus, FiPlus, FiTrash2 } from "react-icons/fi";
 
-const CartItem = ({ item, onQuantityChange, onRemove }) => {
+const CartItem = ({ item, itemIndex, onQuantityChange, onRemove }) => {
+  // According to backend: itemId is the index of the item in the cart array
+  const itemId = itemIndex !== undefined ? itemIndex : (item._id || item.id || 0);
+  
   const handleDecrease = () => {
     if (item.quantity > 1) {
-      onQuantityChange(item.id, item.quantity - 1);
+      onQuantityChange(itemId, item.quantity - 1);
     }
   };
 
   const handleIncrease = () => {
-    onQuantityChange(item.id, item.quantity + 1);
+    onQuantityChange(itemId, item.quantity + 1);
   };
 
   const handleRemove = () => {
-    onRemove(item.id);
+    onRemove(itemId);
   };
 
   return (
