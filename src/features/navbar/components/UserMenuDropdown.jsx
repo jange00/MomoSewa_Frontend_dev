@@ -3,16 +3,18 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { FiChevronDown, FiLogOut } from "react-icons/fi";
 import { DASHBOARD_MENU_ITEMS } from "../../customer-dashboard/constants/menuItems";
 import { USER_ROLES } from "../../../common/roleConstants";
+import { useAuth } from "../../../hooks/useAuth";
 
 const UserMenuDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
 
-  // Get user info from localStorage
-  const userName = localStorage.getItem("name") || "Customer";
-  const userRole = localStorage.getItem("role");
+  // Get user info from useAuth hook
+  const userName = user?.name || "Customer";
+  const userRole = user?.role;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -36,20 +38,19 @@ const UserMenuDropdown = () => {
     setIsOpen(false);
   }, [location.pathname]);
 
-  const handleLogout = () => {
-    // Clear localStorage
-    localStorage.removeItem("role");
-    localStorage.removeItem("name");
-    localStorage.removeItem("email");
-    localStorage.removeItem("token");
+  const handleLogout = async () => {
     // Close dropdown
     setIsOpen(false);
-    // Redirect to login
-    navigate("/login");
+    // Use logout from useAuth hook
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
-  // Only show for Customer role
-  if (userRole !== USER_ROLES.CUSTOMER) {
+  // Only show for authenticated Customer role
+  if (!isAuthenticated || userRole !== USER_ROLES.CUSTOMER) {
     return null;
   }
 

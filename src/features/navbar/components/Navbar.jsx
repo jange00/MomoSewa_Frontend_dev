@@ -1,35 +1,26 @@
 import { FiSearch, FiShoppingCart, FiMenu, FiX } from "react-icons/fi";
 import { Link, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Logo from "../../../common/Logo";
 import UserMenuDropdown from "./UserMenuDropdown";
 import { USER_ROLES } from "../../../common/roleConstants";
 import { DASHBOARD_MENU_ITEMS } from "../../customer-dashboard/constants/menuItems";
+import { useAuth } from "../../../hooks/useAuth";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [userRole, setUserRole] = useState(localStorage.getItem("role"));
   const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
 
-  // Update user role when localStorage changes (for login/logout)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setUserRole(localStorage.getItem("role"));
-    };
+  // Normalize role (handle case variations from backend)
+  const normalizeRole = (role) => {
+    if (!role) return null;
+    return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+  };
 
-    // Listen for storage events (for cross-tab updates)
-    window.addEventListener("storage", handleStorageChange);
-
-    // Check on mount and when location changes (for same-tab updates)
-    setUserRole(localStorage.getItem("role"));
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [location.pathname]); // Re-check when route changes
-
-  // Check if user is logged in as customer
-  const isCustomerLoggedIn = userRole === USER_ROLES.CUSTOMER;
+  // Check if user is logged in as customer (case-insensitive)
+  const userRole = normalizeRole(user?.role);
+  const isCustomerLoggedIn = isAuthenticated && userRole === USER_ROLES.CUSTOMER;
 
   const navLinks = [
     { path: "/", label: "Home" },

@@ -13,7 +13,7 @@ const Footer = () => {
               <h3 className="text-2xl font-bold">MomoSewa</h3>
             </div>
             <p className="text-white/70 mb-4 max-w-md">
-              Your one-stop platform for authentic Nepali momos. Order, customize, and enjoy fresh momos delivered to your door.
+              Your one-stop platform for authentic Nepali momo. Order, customize, and enjoy fresh momo delivered to your door.
             </p>
             <div className="flex items-center gap-4 text-sm text-white/70">
               <span>+977-9860579795</span>

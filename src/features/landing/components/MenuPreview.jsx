@@ -35,7 +35,7 @@ const MenuPreview = () => {
     <Section className="bg-white">
       <div className="text-center mb-16">
         <h2 className="text-4xl lg:text-5xl font-black text-charcoal-grey mb-4">
-          Popular <span className="text-deep-maroon">Momos</span>
+          Popular <span className="text-deep-maroon">Momo</span>
         </h2>
         <p className="text-lg text-charcoal-grey/70 max-w-2xl mx-auto">
           Explore our most loved momo varieties, all customizable to your taste.

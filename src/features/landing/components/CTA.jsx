@@ -12,7 +12,7 @@ const CTA = () => {
       
       <div className="relative z-10 text-center max-w-4xl mx-auto">
         <h2 className="text-4xl lg:text-5xl xl:text-6xl font-black mb-6 leading-tight">
-          Ready to Enjoy Fresh Momos?
+          Ready to Enjoy Fresh Momo?
         </h2>
         <p className="text-xl lg:text-2xl text-white/90 mb-10 max-w-2xl mx-auto">
           Join thousands of customers and vendors on MomoSewa. Order now or become a vendor today!

@@ -66,7 +66,7 @@ const Hero = () => {
             <div className="space-y-4 animate-slide-in-left">
               <h1 className="text-5xl lg:text-6xl xl:text-7xl font-black leading-[1.1]">
                 <span className="block text-charcoal-grey mb-2">Authentic</span>
-                <span className="block text-deep-maroon">Nepali Momos</span>
+                <span className="block text-deep-maroon">Nepali Momo</span>
               </h1>
               <p className="text-xl lg:text-2xl font-bold text-charcoal-grey/80 mt-4">
                 Delivered Fresh to Your Door
@@ -76,7 +76,7 @@ const Hero = () => {
             {/* Description */}
             <div className="animate-fade-in-up" style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}>
               <p className="text-base lg:text-lg text-charcoal-grey/70 leading-relaxed max-w-lg">
-                Experience the taste of the Himalayas with our handcrafted momos, traditional thukpa, and authentic Nepali cuisine. Made with love, served with pride.
+                Experience the taste of the Himalayas with our handcrafted momo, traditional thukpa, and authentic Nepali cuisine. Made with love, served with pride.
               </p>
             </div>
 
