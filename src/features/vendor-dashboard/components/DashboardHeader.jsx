@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { FiMenu, FiBell, FiSearch, FiX } from "react-icons/fi";
 import { Link, useLocation } from "react-router-dom";
+import { useGet } from "../../../hooks/useApi";
+import { API_ENDPOINTS } from "../../../api/config";
 
 const DashboardHeader = ({ onMenuClick }) => {
   const location = useLocation();
@@ -8,55 +10,33 @@ const DashboardHeader = ({ onMenuClick }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
-  // Calculate notification count from localStorage or mock data
+  // Fetch unread notification count from API
+  const { data: unreadCountData } = useGet(
+    'vendor-notification-unread-count',
+    `${API_ENDPOINTS.NOTIFICATIONS}/unread-count`,
+    { 
+      showErrorToast: false,
+      refetchInterval: 30000, // Refetch every 30 seconds
+    }
+  );
+
+  // Update count from API or event
   useEffect(() => {
-    // In a real app, this would be an API call
-    // For now, get from localStorage or calculate from mock data
-    const storedNotifications = localStorage.getItem("vendorNotifications");
-    if (storedNotifications) {
-      try {
-        const notifications = JSON.parse(storedNotifications);
-        const unreadCount = notifications.filter((n) => !n.isRead).length;
-        setNotificationCount(unreadCount);
-      } catch (e) {
-        // Fallback to mock count
-        setNotificationCount(2);
-      }
-    } else {
-      // Use mock data count
-      const mockNotifications = [
-        { id: 1, isRead: false },
-        { id: 2, isRead: false },
-        { id: 3, isRead: true },
-        { id: 4, isRead: true },
-      ];
-      const unreadCount = mockNotifications.filter((n) => !n.isRead).length;
-      setNotificationCount(unreadCount);
+    if (unreadCountData?.data?.count !== undefined) {
+      setNotificationCount(unreadCountData.data.count);
     }
 
-    // Listen for storage changes to update count
-    const handleStorageChange = () => {
-      const stored = localStorage.getItem("vendorNotifications");
-      if (stored) {
-        try {
-          const notifications = JSON.parse(stored);
-          const unreadCount = notifications.filter((n) => !n.isRead).length;
-          setNotificationCount(unreadCount);
-        } catch (e) {
-          setNotificationCount(2);
-        }
-      }
+    // Listen for updates from notification pages
+    const handleUpdate = () => {
+      // Refetch will happen automatically via React Query
     };
 
-    window.addEventListener("storage", handleStorageChange);
-    // Also listen for custom event from notifications page
-    window.addEventListener("vendorNotificationsUpdated", handleStorageChange);
+    window.addEventListener("vendorNotificationsUpdated", handleUpdate);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("vendorNotificationsUpdated", handleStorageChange);
+      window.removeEventListener("vendorNotificationsUpdated", handleUpdate);
     };
-  }, []);
+  }, [unreadCountData]);
 
   return (
     <header className="sticky top-0 z-30 bg-white/98 backdrop-blur-xl border-b border-charcoal-grey/10 shadow-sm">
