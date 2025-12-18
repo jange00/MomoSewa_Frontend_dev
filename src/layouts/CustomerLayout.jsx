@@ -3,6 +3,7 @@ import { useState } from "react";
 import Navbar from "../features/navbar/components/Navbar";
 import DashboardSidebar from "../features/customer-dashboard/components/DashboardSidebar";
 import DashboardHeader from "../features/customer-dashboard/components/DashboardHeader";
+import { useSocket } from "../hooks/useSocket";
 
 const DASHBOARD_ROUTES = [
   "/customer/dashboard",
@@ -20,6 +21,22 @@ const CustomerLayout = () => {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
+
+  // Initialize socket connection for real-time notifications
+  useSocket({
+    autoConnect: true,
+    onNotification: (data) => {
+      // Handle real-time notifications
+      console.log('New notification received:', data);
+      // You can dispatch events, update state, show toasts, etc.
+      window.dispatchEvent(new CustomEvent('socketNotification', { detail: data }));
+    },
+    onOrderUpdate: (data) => {
+      // Handle real-time order updates
+      console.log('Order update received:', data);
+      window.dispatchEvent(new CustomEvent('socketOrderUpdate', { detail: data }));
+    },
+  });
 
   if (isDashboardRoute) {
     return (

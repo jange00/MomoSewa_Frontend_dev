@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FiUser, FiShoppingBag, FiShield } from "react-icons/fi";
+import { FiUser, FiShoppingBag } from "react-icons/fi";
 import { USER_ROLES, ROLE_DESCRIPTIONS } from "../common/roleConstants";
 import Logo from "../common/Logo";
 import Footer from "../features/landing/components/Footer";
@@ -23,16 +23,6 @@ const RoleSelectionPage = () => {
       route: "/signup/vendor",
       gradient: "from-green-500 to-green-600",
       bgGradient: "from-green-50 to-green-100",
-    },
-    {
-      role: USER_ROLES.ADMIN,
-      icon: FiShield,
-      title: "Admin Access",
-      description: ROLE_DESCRIPTIONS[USER_ROLES.ADMIN],
-      route: "/signup/admin",
-      gradient: "from-purple-500 to-purple-600",
-      bgGradient: "from-purple-50 to-purple-100",
-      isAdmin: true,
     },
   ];
 
@@ -61,7 +51,7 @@ const RoleSelectionPage = () => {
           </div>
 
           {/* Role Selection Cards */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <div className="grid md:grid-cols-2 gap-6 mb-8 max-w-3xl mx-auto">
             {roles.map((roleOption) => {
               const Icon = roleOption.icon;
               return (
@@ -72,7 +62,6 @@ const RoleSelectionPage = () => {
                     group relative bg-white rounded-2xl border-2 border-charcoal-grey/10 
                     p-8 shadow-lg hover:shadow-2xl transition-all duration-300
                     hover:scale-[1.02] hover:border-deep-maroon/30
-                    ${roleOption.isAdmin ? "opacity-75" : ""}
                   `}
                 >
                   {/* Icon Circle */}
@@ -107,15 +96,6 @@ const RoleSelectionPage = () => {
                       <path d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
                   </div>
-
-                  {/* Admin Badge */}
-                  {roleOption.isAdmin && (
-                    <div className="absolute top-4 right-4">
-                      <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
-                        Restricted
-                      </span>
-                    </div>
-                  )}
                 </Link>
               );
             })}

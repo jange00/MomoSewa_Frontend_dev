@@ -6,41 +6,26 @@ import DeliveryForm from "../features/checkout/components/DeliveryForm";
 import PaymentMethod from "../features/checkout/components/PaymentMethod";
 import OrderSummary from "../features/checkout/components/OrderSummary";
 import Button from "../ui/buttons/Button";
-
-// Mock cart data - in real app, this would come from state management or route state
-const initialCartItems = [
-  {
-    id: 1,
-    name: "Steam Momo (10 pcs)",
-    description: "Traditional Nepali steamed momos with juicy chicken filling",
-    variant: "Chicken",
-    price: 250.00,
-    quantity: 2,
-    image: null,
-  },
-  {
-    id: 2,
-    name: "Fried Momo (8 pcs)",
-    description: "Crispy fried momos with vegetable filling",
-    variant: "Vegetable",
-    price: 280.00,
-    quantity: 1,
-    image: null,
-  },
-  {
-    id: 3,
-    name: "Jhol Momo (10 pcs)",
-    description: "Steamed momos served with spicy tomato-based sauce",
-    variant: "Buff",
-    price: 300.00,
-    quantity: 1,
-    image: null,
-  },
-];
+import { useGet, usePost } from "../hooks/useApi";
+import { API_ENDPOINTS } from "../api/config";
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
-  const [cartItems] = useState(initialCartItems);
+
+  // Fetch cart from API
+  const { data: cartData, isLoading: cartLoading } = useGet(
+    'cart',
+    API_ENDPOINTS.CART,
+    { showErrorToast: true }
+  );
+
+  const cartItems = cartData?.data?.items || cartData?.data || [];
+
+  // Create order mutation
+  const createOrderMutation = usePost('orders', API_ENDPOINTS.ORDERS, {
+    showSuccessToast: true,
+    showErrorToast: true,
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("khalti");
   const [deliveryForm, setDeliveryForm] = useState({
@@ -54,12 +39,36 @@ const CheckoutPage = () => {
   });
 
   const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum, item) => sum + (item.price || item.product?.price || 0) * (item.quantity || 1),
     0
   );
   const deliveryFee = subtotal > 500 ? 0 : 50;
   const discount = 0; // Can be passed from cart if promo was applied
   const total = subtotal + deliveryFee - discount;
+
+  if (cartLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-charcoal-grey/3 via-white to-golden-amber/5 py-20 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-charcoal-grey/3 via-white to-golden-amber/5 py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-charcoal-grey mb-4">Your cart is empty</h2>
+            <p className="text-charcoal-grey/60 mb-8">Add items to your cart before checkout</p>
+            <Button variant="primary" size="md" to="/menu">
+              Browse Menu
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleFormChange = (newFormData) => {
     setDeliveryForm(newFormData);
@@ -79,15 +88,35 @@ const CheckoutPage = () => {
 
     setIsProcessing(true);
 
-    // Simulate order processing
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const orderData = {
+        items: cartItems.map(item => ({
+          productId: item.productId || item.product?._id || item.product?.id,
+          quantity: item.quantity || 1,
+        })),
+        deliveryAddress: {
+          fullName: deliveryForm.fullName,
+          phone: deliveryForm.phone,
+          address: deliveryForm.address,
+          city: deliveryForm.city,
+          area: deliveryForm.area,
+          postalCode: deliveryForm.postalCode,
+          instructions: deliveryForm.instructions,
+        },
+        paymentMethod: paymentMethod,
+        total: total,
+      };
 
-    setIsProcessing(false);
+      const result = await createOrderMutation.mutateAsync(orderData);
 
-    // In real app, navigate to order confirmation page
-    // For now, show success message
-    toast.success("Order placed successfully! You will be redirected to order confirmation.");
-    // navigate("/order-confirmation");
+      if (result?.success) {
+        navigate(`/customer/orders/${result.data?.order?._id || result.data?._id}`);
+      }
+    } catch (error) {
+      console.error("Failed to place order:", error);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (

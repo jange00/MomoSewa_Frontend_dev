@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import CustomerSignupPromo from "../features/auth/components/signup/CustomerSignupPromo";
 import CustomerSignupForm from "../features/auth/components/signup/CustomerSignupForm";
 import Footer from "../features/landing/components/Footer";
-import { USER_ROLES, ROLE_DASHBOARD_ROUTES } from "../common/roleConstants";
+import { USER_ROLES } from "../common/roleConstants";
+import { useAuth } from "../hooks/useAuth";
 
 const CustomerSignupPage = () => {
   const navigate = useNavigate();
+  const { register, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -77,17 +79,28 @@ const CustomerSignupPage = () => {
 
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Customer signup attempt:", formData);
-      // Save user data to localStorage (in real app, this would come from API response)
-      localStorage.setItem("role", USER_ROLES.CUSTOMER);
-      localStorage.setItem("name", formData.name);
-      localStorage.setItem("email", formData.email);
+    try {
+      // Prepare registration data (remove confirmPassword)
+      const { confirmPassword, ...registrationData } = formData;
+      
+      // Call the real API
+      const result = await register(registrationData);
+      
+      if (result && result.success) {
+        // Registration successful, user is now logged in
+        // Navigate to landing page (navbar will show user menu)
+        navigate("/");
+      }
+    } catch (error) {
+      // Error is already handled by useAuth hook (toast shown)
+      console.error("Registration error:", error);
+      // Set field-specific errors if available
+      if (error.details) {
+        setErrors(error.details);
+      }
+    } finally {
       setIsLoading(false);
-      // Navigate to landing page (navbar will show user menu)
-      navigate("/");
-    }, 1000);
+    }
   };
 
   const handleGoogleSignup = useGoogleLogin({

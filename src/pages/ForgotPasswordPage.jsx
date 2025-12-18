@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import ForgotPasswordPromo from "../features/auth/components/forgot-password/ForgotPasswordPromo";
 import ForgotPasswordForm from "../features/auth/components/forgot-password/ForgotPasswordForm";
 import Footer from "../features/landing/components/Footer";
+import { useAuth } from "../hooks/useAuth";
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
+  const { forgotPassword } = useAuth();
   const [formData, setFormData] = useState({
     emailOrPhone: "",
   });
@@ -50,12 +52,26 @@ const ForgotPasswordPage = () => {
 
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Password reset request:", formData);
-      setIsLoading(false);
+    try {
+      // Determine if input is email or phone
+      const isEmail = /^[\w\.-]+@[\w\.-]+\.\w+$/.test(formData.emailOrPhone);
+      const requestData = isEmail
+        ? { email: formData.emailOrPhone }
+        : { phone: formData.emailOrPhone };
+
+      // Call the real API
+      await forgotPassword(requestData);
       setIsSuccess(true);
-    }, 1500);
+    } catch (error) {
+      // Error is already handled by useAuth hook (toast shown)
+      console.error("Forgot password error:", error);
+      // Set field-specific errors if available
+      if (error.details) {
+        setErrors(error.details);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

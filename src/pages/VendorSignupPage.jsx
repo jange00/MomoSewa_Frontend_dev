@@ -5,12 +5,12 @@ import toast from "react-hot-toast";
 import VendorSignupPromo from "../features/auth/components/signup/VendorSignupPromo";
 import VendorSignupForm from "../features/auth/components/signup/VendorSignupForm";
 import Footer from "../features/landing/components/Footer";
-import { USER_ROLES, ROLE_DASHBOARD_ROUTES } from "../common/roleConstants";
-import { saveVendorData } from "../utils/vendorData";
-import { addPendingVendor } from "../utils/pendingVendors";
+import { USER_ROLES } from "../common/roleConstants";
+import { useAuth } from "../hooks/useAuth";
 
 const VendorSignupPage = () => {
   const navigate = useNavigate();
+  const { register, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     businessName: "",
@@ -18,6 +18,7 @@ const VendorSignupPage = () => {
     phone: "",
     businessAddress: "",
     businessLicense: "",
+    storeName: "",
     password: "",
     confirmPassword: "",
     role: USER_ROLES.VENDOR,
@@ -68,6 +69,16 @@ const VendorSignupPage = () => {
       newErrors.businessAddress = "Business address is required";
     }
 
+    // Business license is optional but if provided, should be valid
+    if (formData.businessLicense && formData.businessLicense.trim().length < 3) {
+      newErrors.businessLicense = "Business license must be at least 3 characters if provided";
+    }
+
+    // Store name is required - use businessName as fallback if not provided
+    if (!formData.storeName?.trim() && !formData.businessName?.trim()) {
+      newErrors.storeName = "Store name is required";
+    }
+
     if (!formData.password) {
       newErrors.password = "Password is required";
     } else if (formData.password.length < 6) {
@@ -93,56 +104,97 @@ const VendorSignupPage = () => {
 
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      try {
-        console.log("Vendor signup attempt:", formData);
-        
-        // Add vendor to pending applications (requires admin approval)
-        const pendingVendor = addPendingVendor({
-          role: USER_ROLES.VENDOR,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          businessName: formData.businessName,
-          businessAddress: formData.businessAddress,
-          businessLicense: formData.businessLicense || "",
-          storeName: formData.businessName, // Use business name as default store name
-          password: formData.password, // In production, this should be hashed
-        });
-        
-        // Save basic vendor data for login check (but status is pending)
-        saveVendorData({
-          role: USER_ROLES.VENDOR,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          businessName: formData.businessName,
-          businessAddress: formData.businessAddress,
-          businessLicense: formData.businessLicense || "",
-          storeName: formData.businessName,
-          vendorId: pendingVendor.id,
-        });
-        
-        setIsLoading(false);
-        toast.success("Vendor application submitted! Waiting for admin approval. You'll be notified once approved.");
-        
-        // Navigate to pending approval page
-        setTimeout(() => {
-          navigate("/vendor/pending-approval");
-        }, 1500);
-      } catch (error) {
-        setIsLoading(false);
-        toast.error(error.message || "Failed to submit vendor application. Please try again.");
+    try {
+      // Prepare registration data (remove confirmPassword, add vendor-specific fields)
+      const { confirmPassword, ...registrationData } = formData;
+      
+      // Ensure storeName is set (use businessName if not provided)
+      if (!registrationData.storeName || !registrationData.storeName.trim()) {
+        registrationData.storeName = registrationData.businessName;
       }
-    }, 1000);
+      
+      // Remove businessLicense if it's empty (optional field)
+      if (!registrationData.businessLicense || !registrationData.businessLicense.trim()) {
+        delete registrationData.businessLicense;
+      }
+      
+      // Ensure role is set to Vendor
+      registrationData.role = USER_ROLES.VENDOR;
+      
+      console.log('Registration data being sent:', registrationData);
+      
+      // Call the real API
+      const result = await register(registrationData);
+      
+      if (result && result.success) {
+        // Check if vendor requires approval (not auto-logged in)
+        if (result.requiresApproval) {
+          // Vendor application submitted but not approved yet
+          // User is NOT logged in - they need to wait for admin approval
+          // Redirect to a waiting page (not the pending approval page since they're not logged in)
+          setTimeout(() => {
+            navigate("/vendor/application-submitted", { replace: true });
+          }, 100);
+          return;
+        }
+        
+        // If vendor is already approved (unlikely but possible), go to dashboard
+        const user = result.data?.user;
+        const vendorStatus = user?.status || user?.vendorStatus || user?.approvalStatus || "pending";
+        
+        if (vendorStatus === "active" || vendorStatus === "approved") {
+          toast.success("Registration successful! Welcome to your vendor dashboard.");
+          setTimeout(() => {
+            navigate("/vendor/dashboard", { replace: true });
+          }, 100);
+        } else {
+          // Fallback: if somehow we got here without requiresApproval, still redirect to application-submitted
+          toast.success("Your vendor application has been submitted successfully!");
+          toast.info("Please wait for admin approval. You'll be able to log in once your application is approved.");
+          setTimeout(() => {
+            navigate("/vendor/application-submitted", { replace: true });
+          }, 100);
+        }
+      } else {
+        // Registration failed - error is already shown by useAuth hook
+        console.error('Registration failed:', result);
+      }
+    } catch (error) {
+      // Error is already handled by useAuth hook (toast shown)
+      console.error("Registration error:", error);
+      
+      // Set field-specific errors if available
+      // handleApiError returns an object with details, not throws
+      if (error.details && typeof error.details === 'object') {
+        // Handle validation errors from API
+        const fieldErrors = {};
+        Object.keys(error.details).forEach(key => {
+          // Convert API field names to form field names if needed
+          const formFieldName = key.toLowerCase();
+          if (formData.hasOwnProperty(formFieldName)) {
+            fieldErrors[formFieldName] = error.details[key];
+          } else {
+            fieldErrors[key] = error.details[key];
+          }
+        });
+        setErrors(fieldErrors);
+      } else if (error.response?.data?.details) {
+        // Handle API validation errors from axios response
+        const apiErrors = error.response.data.details;
+        if (typeof apiErrors === 'object') {
+          setErrors(apiErrors);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignup = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
-        console.log("Google vendor signup success:", tokenResponse);
-        
+      console.log("Google vendor signup success:", tokenResponse);
+      
         // In real app, send token to backend to get user details
         // For now, we'll need additional info for vendor signup
         // This is a simplified version - in production, you'd get user info from Google

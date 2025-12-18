@@ -1,15 +1,19 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
+import { useQueryClient } from "@tanstack/react-query";
 import LoginPromo from "../features/auth/components/login/LoginPromo";
 import LoginForm from "../features/auth/components/login/LoginForm";
 import Footer from "../features/landing/components/Footer";
 import { ROLE_DASHBOARD_ROUTES, USER_ROLES } from "../common/roleConstants";
-import { getVendorStatus } from "../utils/pendingVendors";
+import { useAuth } from "../hooks/useAuth";
 import toast from "react-hot-toast";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { login, loading: authLoading, isAuthenticated, user } = useAuth();
   const [formData, setFormData] = useState({
     emailOrPhone: "",
     password: "",
@@ -17,6 +21,17 @@ const LoginPage = () => {
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+
+  // Check if vendor was just approved (from URL parameter)
+  useEffect(() => {
+    const approved = searchParams.get('approved');
+    const email = searchParams.get('email');
+    if (approved === 'true' && email) {
+      // Pre-fill email if provided
+      setFormData(prev => ({ ...prev, emailOrPhone: email }));
+      toast.success("Your vendor account has been approved! Please log in to continue.");
+    }
+  }, [searchParams]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -53,7 +68,11 @@ const LoginPage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    // Prevent default form submission and page refresh
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     
     if (!validateForm()) {
       return;
@@ -61,108 +80,150 @@ const LoginPage = () => {
 
     setIsLoading(true);
     
-    // Simulate API call - In real app, API will return user role and token
-    setTimeout(() => {
-      console.log("Login attempt:", formData);
+    try {
+      // Determine if input is email or phone
+      const isEmail = /^[\w\.-]+@[\w\.-]+\.\w+$/.test(formData.emailOrPhone);
+      const credentials = isEmail
+        ? { email: formData.emailOrPhone, password: formData.password }
+        : { phone: formData.emailOrPhone, password: formData.password };
+
+      // Call the real API
+      const result = await login(credentials);
       
-      // TODO: In production, replace this with actual API call
-      // const response = await api.post('/auth/login', formData);
-      // const { user, token, role } = response.data;
-      // localStorage.setItem('token', token);
-      // localStorage.setItem('role', role);
+      console.log('Login API result:', result);
       
-      // TEMPORARY: Hardcoded login credentials for testing
-      const email = formData.emailOrPhone.toLowerCase();
-      let userRole = null;
-      let userName = "";
-      
-      if (email === "customer@gmail.com") {
-        userRole = USER_ROLES.CUSTOMER;
-        userName = "Customer User";
-        localStorage.setItem("role", USER_ROLES.CUSTOMER);
-        localStorage.setItem("email", email);
-        localStorage.setItem("name", userName);
-        localStorage.setItem("token", "temp-customer-token");
-      } else if (email === "vendor@gmail.com") {
-        userRole = USER_ROLES.VENDOR;
-        userName = "Vendor User";
-        localStorage.setItem("role", USER_ROLES.VENDOR);
-        localStorage.setItem("email", email);
-        localStorage.setItem("name", userName);
-        localStorage.setItem("token", "temp-vendor-token");
-      } else if (email === "admin@gmail.com") {
-        userRole = USER_ROLES.ADMIN;
-        userName = "Admin User";
-        localStorage.setItem("role", USER_ROLES.ADMIN);
-        localStorage.setItem("email", email);
-        localStorage.setItem("name", userName);
-        localStorage.setItem("token", "temp-admin-token");
-      } else {
-        // Fallback to existing logic
-        userRole = localStorage.getItem("role");
-      }
-      
-      // Get role from localStorage (in real app, this comes from API response)
-      const finalUserRole = userRole || localStorage.getItem("role");
-      const userEmail = localStorage.getItem("email");
-      
-      setIsLoading(false);
-      
-      // Check vendor approval status (skip for temporary vendor@gmail.com login)
-      if (finalUserRole === USER_ROLES.VENDOR && userEmail && email !== "vendor@gmail.com") {
-        const vendorStatus = getVendorStatus(userEmail);
+      if (result && result.success) {
+        // Invalidate all React Query cache to ensure fresh data after login
+        queryClient.invalidateQueries();
         
-        if (vendorStatus === "pending") {
-          toast.info("Your vendor application is pending approval");
-          navigate("/vendor/pending-approval");
-          return;
-        } else if (vendorStatus === "rejected") {
-          toast.error("Your vendor application has been rejected");
-          navigate("/vendor/pending-approval");
-          return;
-        } else if (vendorStatus !== "active") {
-          toast.error("Your vendor account is not active");
-          navigate("/vendor/pending-approval");
+        // Get user from API response (most reliable)
+        const loggedInUser = result.data?.user;
+        
+        if (!loggedInUser) {
+          console.error('No user data in login response');
+          toast.error('Login successful but user data is missing. Please try again.');
           return;
         }
-      }
-      
-      // For temporary vendor@gmail.com, ensure they're approved
-      if (email === "vendor@gmail.com") {
-        // Check if vendor exists in approved list, if not add them
-        const vendorStatus = getVendorStatus(email);
-        if (vendorStatus !== "active") {
-          // Add to approved vendors for temporary access
-          const approvedVendors = JSON.parse(localStorage.getItem("approvedVendors") || "[]");
-          const existingVendor = approvedVendors.find(v => v.email === email);
-          if (!existingVendor) {
-            approvedVendors.push({
-              id: "VENDOR-TEMP-001",
-              role: USER_ROLES.VENDOR,
-              name: userName,
-              email: email,
-              phone: "+977 9800000000",
-              businessName: "Test Vendor Business",
-              businessAddress: "Test Address",
-              status: "active",
-              approvedDate: new Date().toISOString(),
-            });
-            localStorage.setItem("approvedVendors", JSON.stringify(approvedVendors));
+        
+        // Normalize role (handle case variations from backend: "admin", "Admin", "ADMIN" all become "Admin")
+        const normalizeRole = (role) => {
+          if (!role) return null;
+          return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+        };
+        const userRole = normalizeRole(loggedInUser?.role);
+        
+        console.log('Login successful - Full user object:', loggedInUser);
+        console.log('Login successful - Original role:', loggedInUser?.role);
+        console.log('Login successful - Normalized role:', userRole);
+        console.log('USER_ROLES.ADMIN:', USER_ROLES.ADMIN);
+        console.log('Role match check:', userRole === USER_ROLES.ADMIN);
+        
+        // Check vendor approval status from API response
+        // According to backend: Pending vendors are "Customer" role, approved vendors are "Vendor" role
+        if (userRole === USER_ROLES.VENDOR) {
+          // User is approved vendor - check if they should see the approval page
+          const fromApproval = searchParams.get('approved') === 'true';
+          const vendorEmail = loggedInUser?.email || formData.emailOrPhone;
+          
+          if (fromApproval || searchParams.get('showApproved') === 'true') {
+            // Redirect to approved page with email
+            navigate(`/vendor/approved?email=${encodeURIComponent(vendorEmail)}`);
+            return;
           }
+          // Otherwise, proceed to vendor dashboard
+        } else if (userRole === USER_ROLES.CUSTOMER) {
+          // Check if this customer has applied as vendor (pending approval)
+          // We'll check this by trying to fetch vendor approval status
+          // For now, let customers proceed normally - they can check vendor status separately
+        }
+        
+        // Small delay to ensure state is updated before navigation
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Redirect based on role (userRole is already normalized above)
+        // Check Admin first (most specific)
+        if (userRole === USER_ROLES.ADMIN) {
+          // Admin login - redirect to admin dashboard
+          console.log('✅ Admin detected - Redirecting to admin dashboard');
+          toast.success('Welcome, Admin!');
+          navigate("/admin/dashboard", { replace: true });
+          return;
+        }
+        
+        // Check Customer - redirect to landing page (navbar will show user menu)
+        if (userRole === USER_ROLES.CUSTOMER) {
+          navigate("/", { replace: true });
+          return;
+        }
+        
+        // Check Vendor (should have been handled above, but fallback)
+        if (userRole === USER_ROLES.VENDOR) {
+          navigate("/vendor/dashboard", { replace: true });
+          return;
+        }
+        
+        // Try to use ROLE_DASHBOARD_ROUTES as fallback
+        if (userRole && ROLE_DASHBOARD_ROUTES[userRole]) {
+          console.log('Using ROLE_DASHBOARD_ROUTES for:', userRole);
+          navigate(ROLE_DASHBOARD_ROUTES[userRole], { replace: true });
+          return;
+        }
+        
+        // Unknown role or no role - redirect to home
+        console.warn('❌ Unknown role after login.');
+        console.warn('   Original role from API:', loggedInUser?.role);
+        console.warn('   Normalized role:', userRole);
+        console.warn('   Available roles:', Object.values(USER_ROLES));
+        console.warn('   USER_ROLES object:', USER_ROLES);
+        toast.error(`Unknown user role: ${loggedInUser?.role || 'undefined'}. Please contact support.`);
+        navigate("/", { replace: true });
+      }
+    } catch (error) {
+      // Error is already handled by useAuth hook (toast shown)
+      console.error("❌ Login error in LoginPage:", error);
+      console.error("❌ Error message:", error.message);
+      console.error("❌ Error details:", error.details);
+      console.error("❌ Error response:", error.response);
+      console.error("❌ Error response data:", error.response?.data);
+      console.error("❌ Error status:", error.status);
+      
+      // Show more specific error message
+      let errorMessage = error.message || 'Login failed';
+      
+      // Check for specific error cases
+      if (error.status === 401) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.status === 400) {
+        errorMessage = error.message || 'Invalid request. Please check your input.';
+      } else if (error.status === 404) {
+        errorMessage = 'Login endpoint not found. Please check your API configuration.';
+      } else if (error.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (!error.response) {
+        errorMessage = 'Network error. Please check your connection and ensure the backend server is running at http://localhost:5001';
+      }
+      
+      // Show error toast if not already shown by useAuth
+      if (errorMessage && errorMessage !== error.message) {
+        toast.error(errorMessage);
+      }
+      
+      // Set field-specific errors if available
+      if (error.details) {
+        setErrors(error.details);
+      } else if (error.response?.data?.details) {
+        // Handle API validation errors
+        const apiErrors = error.response.data.details;
+        if (typeof apiErrors === 'object') {
+          setErrors(apiErrors);
         }
       }
       
-      // For customers, stay on landing page (navbar will show user menu)
-      // For other roles, redirect to their dashboard
-      if (finalUserRole === USER_ROLES.CUSTOMER) {
-        navigate("/"); // Stay on landing page
-      } else if (finalUserRole && ROLE_DASHBOARD_ROUTES[finalUserRole]) {
-        navigate(ROLE_DASHBOARD_ROUTES[finalUserRole]);
-      } else {
-        // Default to landing page if no role is set
-        navigate("/");
-      }
-    }, 1000);
+      // Ensure we don't cause page refresh
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleLogin = useGoogleLogin({
@@ -175,29 +236,9 @@ const LoginPage = () => {
       // localStorage.setItem('token', token);
       // localStorage.setItem('role', role);
       
-      // For now, get role from localStorage
-      // In production, role should come from API response
-      const userRole = localStorage.getItem("role");
-      const userEmail = localStorage.getItem("email");
-      
-      // Check vendor approval status (skip for temporary vendor@gmail.com login)
-      if (userRole === USER_ROLES.VENDOR && userEmail && userEmail !== "vendor@gmail.com") {
-        const vendorStatus = getVendorStatus(userEmail);
-        
-        if (vendorStatus === "pending") {
-          toast.info("Your vendor application is pending approval");
-          navigate("/vendor/pending-approval");
-          return;
-        } else if (vendorStatus === "rejected") {
-          toast.error("Your vendor application has been rejected");
-          navigate("/vendor/pending-approval");
-          return;
-        } else if (vendorStatus !== "active") {
-          toast.error("Your vendor account is not active");
-          navigate("/vendor/pending-approval");
-          return;
-        }
-      }
+      // Google login - TODO: Implement proper Google OAuth with backend
+      // For now, show a message that Google login needs backend integration
+      toast.info("Google login requires backend integration. Please use email/password login.");
       
       // For customers, stay on landing page (navbar will show user menu)
       // For other roles, redirect to their dashboard

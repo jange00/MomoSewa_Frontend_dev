@@ -9,131 +9,8 @@ import ViewModeToggle from "../features/menu/components/ViewModeToggle";
 import SearchBar from "../ui/search/SearchBar";
 import EmptyState from "../ui/empty/EmptyState";
 import Button from "../ui/buttons/Button";
-
-// Mock product data - replace with actual API call
-const mockProducts = [
-  {
-    id: 1,
-    name: "Steam Momo (10 pcs)",
-    description: "Traditional Nepali steamed momos with juicy chicken filling, served with spicy achar",
-    price: 250,
-    originalPrice: 300,
-    category: "Steamed",
-    rating: 4.8,
-    reviewCount: 124,
-    emoji: "🥟",
-  },
-  {
-    id: 2,
-    name: "Fried Momo (8 pcs)",
-    description: "Crispy fried momos with vegetable filling, golden brown and delicious",
-    price: 280,
-    category: "Fried",
-    rating: 4.6,
-    reviewCount: 89,
-    emoji: "🥟",
-  },
-  {
-    id: 3,
-    name: "Jhol Momo (10 pcs)",
-    description: "Steamed momos served with spicy tomato-based sauce and traditional achar",
-    price: 300,
-    category: "Steamed",
-    rating: 4.9,
-    reviewCount: 156,
-    emoji: "🥟",
-  },
-  {
-    id: 4,
-    name: "Kothey Momo (10 pcs)",
-    description: "Pan-fried momos with golden crust, crispy on one side and soft on the other",
-    price: 270,
-    category: "Fried",
-    rating: 4.7,
-    reviewCount: 98,
-    emoji: "🥟",
-  },
-  {
-    id: 5,
-    name: "C-Momo (1 plate)",
-    description: "Spicy and tangy momos tossed in special sauce with vegetables",
-    price: 320,
-    category: "Special",
-    rating: 4.5,
-    reviewCount: 67,
-    emoji: "🥟",
-  },
-  {
-    id: 6,
-    name: "Buff Momo (10 pcs)",
-    description: "Steamed momos with tender buffalo meat filling, authentic Nepali taste",
-    price: 290,
-    category: "Steamed",
-    rating: 4.8,
-    reviewCount: 112,
-    emoji: "🥟",
-  },
-  {
-    id: 7,
-    name: "Veg Momo (10 pcs)",
-    description: "Delicious vegetarian momos with mixed vegetables and herbs",
-    price: 220,
-    category: "Steamed",
-    rating: 4.4,
-    reviewCount: 145,
-    emoji: "🥟",
-  },
-  {
-    id: 8,
-    name: "Chilly Momo (1 plate)",
-    description: "Spicy momos tossed in hot sauce with bell peppers and onions",
-    price: 310,
-    category: "Special",
-    rating: 4.6,
-    reviewCount: 78,
-    emoji: "🥟",
-  },
-  {
-    id: 9,
-    name: "Tandoori Momo (8 pcs)",
-    description: "Grilled momos with tandoori spices, smoky and flavorful",
-    price: 350,
-    category: "Special",
-    rating: 4.7,
-    reviewCount: 54,
-    emoji: "🥟",
-  },
-  {
-    id: 10,
-    name: "Cheese Momo (10 pcs)",
-    description: "Steamed momos with melted cheese filling, creamy and delicious",
-    price: 330,
-    category: "Special",
-    rating: 4.3,
-    reviewCount: 43,
-    emoji: "🥟",
-  },
-  {
-    id: 11,
-    name: "Chicken Momo (10 pcs)",
-    description: "Classic chicken momos with traditional spices and herbs",
-    price: 260,
-    category: "Steamed",
-    rating: 4.9,
-    reviewCount: 201,
-    emoji: "🥟",
-  },
-  {
-    id: 12,
-    name: "Momo Thukpa Combo",
-    description: "Steamed momos with hot thukpa soup, perfect combination",
-    price: 380,
-    category: "Combo",
-    rating: 4.8,
-    reviewCount: 92,
-    emoji: "🥟",
-  },
-];
+import { useGet, usePost } from "../hooks/useApi";
+import { API_ENDPOINTS } from "../api/config";
 
 const MenuPage = () => {
   const [showFilters, setShowFilters] = useState(false);
@@ -143,26 +20,42 @@ const MenuPage = () => {
   const [priceRange, setPriceRange] = useState({ min: 0, max: Infinity });
   const [minRating, setMinRating] = useState(0);
 
+  // Fetch products from API
+  const { data: productsData, isLoading } = useGet(
+    'products',
+    API_ENDPOINTS.PRODUCTS,
+    { showErrorToast: true }
+  );
+
+  const products = productsData?.data?.products || productsData?.data || [];
+
+  // Add to cart mutation
+  const addToCartMutation = usePost('cart', API_ENDPOINTS.CART, {
+    showSuccessToast: true,
+    showErrorToast: true,
+  });
+
   // Extract unique categories
   const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(mockProducts.map((p) => p.category))];
+    const uniqueCategories = [...new Set(products.map((p) => p.category || p.categoryName))];
     return uniqueCategories.sort();
-  }, []);
+  }, [products]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
-    return mockProducts.filter((product) => {
+    return products.filter((product) => {
       // Search filter
       if (
         searchQuery &&
-        !product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !product.description.toLowerCase().includes(searchQuery.toLowerCase())
+        !product.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !product.description?.toLowerCase().includes(searchQuery.toLowerCase())
       ) {
         return false;
       }
 
       // Category filter
-      if (selectedCategories.length > 0 && !selectedCategories.includes(product.category)) {
+      const productCategory = product.category || product.categoryName;
+      if (selectedCategories.length > 0 && !selectedCategories.includes(productCategory)) {
         return false;
       }
 
@@ -172,13 +65,13 @@ const MenuPage = () => {
       }
 
       // Rating filter
-      if (product.rating < minRating) {
+      if ((product.rating || 0) < minRating) {
         return false;
       }
 
       return true;
     });
-  }, [searchQuery, selectedCategories, priceRange, minRating]);
+  }, [products, searchQuery, selectedCategories, priceRange, minRating]);
 
   const handleToggleCategory = (category) => {
     setSelectedCategories((prev) =>
@@ -188,10 +81,15 @@ const MenuPage = () => {
     );
   };
 
-  const handleAddToCart = (product) => {
-    // TODO: Implement add to cart functionality
-    console.log("Add to cart:", product);
-    toast.success(`${product.name} added to cart!`);
+  const handleAddToCart = async (product) => {
+    try {
+      await addToCartMutation.mutateAsync({
+        productId: product._id || product.id,
+        quantity: 1,
+      });
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+    }
   };
 
   const clearAllFilters = () => {
@@ -213,7 +111,7 @@ const MenuPage = () => {
         <div className="mb-8">
           <h1 className="text-4xl font-black text-charcoal-grey mb-2">Our Menu</h1>
           <p className="text-charcoal-grey/60">
-            Discover our delicious collection of authentic Nepali momos
+            Discover our delicious collection of authentic Nepali momo
           </p>
         </div>
 
@@ -222,7 +120,7 @@ const MenuPage = () => {
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Search for momos..."
+            placeholder="Search for momo..."
           />
 
           {/* View Mode and Filter Toggle */}
@@ -303,7 +201,11 @@ const MenuPage = () => {
             </div>
 
             {/* Products Display */}
-            {filteredProducts.length > 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+              </div>
+            ) : filteredProducts.length > 0 ? (
               <div
                 className={
                   viewMode === "grid"
@@ -313,7 +215,7 @@ const MenuPage = () => {
               >
                 {filteredProducts.map((product) => (
                   <ProductCard
-                    key={product.id}
+                    key={product._id || product.id}
                     product={product}
                     onAddToCart={handleAddToCart}
                   />

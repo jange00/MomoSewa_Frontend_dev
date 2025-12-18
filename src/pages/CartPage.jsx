@@ -6,88 +6,112 @@ import CartItem from "../features/cart/components/CartItem";
 import PriceSummary from "../features/cart/components/PriceSummary";
 import PromoCodeBox from "../features/cart/components/PromoCodeBox";
 import Button from "../ui/buttons/Button";
-
-// Mock cart data - replace with actual state management
-const initialCartItems = [
-  {
-    id: 1,
-    name: "Steam Momo (10 pcs)",
-    description: "Traditional Nepali steamed momos with juicy chicken filling",
-    variant: "Chicken",
-    price: 250.00,
-    quantity: 2,
-    image: null,
-  },
-  {
-    id: 2,
-    name: "Fried Momo (8 pcs)",
-    description: "Crispy fried momos with vegetable filling",
-    variant: "Vegetable",
-    price: 280.00,
-    quantity: 1,
-    image: null,
-  },
-  {
-    id: 3,
-    name: "Jhol Momo (10 pcs)",
-    description: "Steamed momos served with spicy tomato-based sauce",
-    variant: "Buff",
-    price: 300.00,
-    quantity: 1,
-    image: null,
-  },
-];
+import { useGet, usePatch, useDelete } from "../hooks/useApi";
+import { API_ENDPOINTS } from "../api/config";
+import apiClient from "../api/client";
 
 const CartPage = () => {
-  const [cartItems, setCartItems] = useState(initialCartItems);
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
 
-  const handleQuantityChange = (itemId, newQuantity) => {
-    setCartItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    );
+  // Fetch cart from API
+  const { data: cartData, isLoading, refetch } = useGet(
+    'cart',
+    API_ENDPOINTS.CART,
+    { showErrorToast: true }
+  );
+
+  const cartItems = cartData?.data?.items || cartData?.data || [];
+
+  // Update cart item quantity
+  // According to backend: Use PUT /cart/:itemId where itemId is the index
+  const updateCartItemMutation = usePatch('cart', '', {
+    showSuccessToast: false,
+    showErrorToast: true,
+  });
+
+  // Remove cart item
+  const removeCartItemMutation = useDelete('cart', API_ENDPOINTS.CART, {
+    showSuccessToast: false,
+    showErrorToast: true,
+  });
+
+  const handleQuantityChange = async (itemId, newQuantity) => {
+    if (newQuantity <= 0) {
+      handleRemoveItem(itemId);
+      return;
+    }
+
+    try {
+      await updateCartItemMutation.mutateAsync(
+        { quantity: newQuantity },
+        {
+          onSuccess: () => {
+            refetch();
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Failed to update quantity:", error);
+    }
   };
 
-  const handleRemoveItem = (itemId) => {
-    setCartItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+  const handleRemoveItem = async (itemId) => {
+    try {
+      await removeCartItemMutation.mutateAsync(itemId, {
+        onSuccess: () => {
+          refetch();
+          toast.success("Item removed from cart");
+        },
+      });
+    } catch (error) {
+      console.error("Failed to remove item:", error);
+    }
   };
 
-  const handleApplyPromo = (code) => {
+  const handleApplyPromo = async (code) => {
     if (!code) {
       setAppliedPromo(null);
       setPromoDiscount(0);
       return;
     }
 
-    // Mock promo code validation
-    const validPromos = {
-      WELCOME10: 10,
-      MOMO20: 20,
-      SAVE50: 50,
-    };
-
-    const discountPercent = validPromos[code.toUpperCase()];
-    if (discountPercent) {
-      setAppliedPromo(code.toUpperCase());
-      const subtotal = cartItems.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
+    try {
+      // According to backend: POST /cart/apply-promo
+      const response = await apiClient.post(
+        `${API_ENDPOINTS.CART}/apply-promo`,
+        { promoCode: code.toUpperCase() }
       );
-      setPromoDiscount((subtotal * discountPercent) / 100);
-    } else {
-      toast.error("Invalid promo code. Try WELCOME10, MOMO20, or SAVE50");
+      
+      if (response.data.success) {
+        const discount = response.data.data?.discount || 0;
+        setAppliedPromo(code.toUpperCase());
+        setPromoDiscount(discount);
+        refetch(); // Refresh cart to get updated totals
+        toast.success(response.data.message || "Promo code applied successfully");
+      }
+    } catch (error) {
+      console.error("Failed to apply promo code:", error);
+      toast.error(error.response?.data?.message || "Invalid promo code");
+      setAppliedPromo(null);
+      setPromoDiscount(0);
     }
   };
 
   const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum, item) => sum + (item.price || item.product?.price || 0) * (item.quantity || 1),
     0
   );
 
   const deliveryFee = subtotal > 500 ? 0 : 50; // Free delivery above Rs. 500
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-charcoal-grey/3 via-white to-golden-amber/5 py-20 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      </div>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (
@@ -135,14 +159,15 @@ const CartPage = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Cart Items */}
           <div className="lg:col-span-2 space-y-4">
-            {cartItems.map((item) => (
+            {cartItems.map((item, index) => (
               <CartItem
-                key={item.id}
+                key={item._id || item.id || index}
                 item={item}
+                itemIndex={index} // Pass index as itemId (backend uses index, not ID)
                 onQuantityChange={handleQuantityChange}
                 onRemove={handleRemoveItem}
               />
-            ))}
+              ))}
           </div>
 
           {/* Right Column - Summary */}

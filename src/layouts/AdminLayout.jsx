@@ -3,6 +3,7 @@ import { useState } from "react";
 import Navbar from "../features/navbar/components/Navbar";
 import DashboardSidebar from "../features/admin-dashboard/components/DashboardSidebar";
 import DashboardHeader from "../features/admin-dashboard/components/DashboardHeader";
+import { useSocket } from "../hooks/useSocket";
 
 const ADMIN_DASHBOARD_ROUTES = [
   "/admin/dashboard",
@@ -23,6 +24,19 @@ const AdminLayout = () => {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
+
+  // Initialize socket connection for real-time notifications
+  useSocket({
+    autoConnect: true,
+    onNotification: (data) => {
+      console.log('New notification received:', data);
+      window.dispatchEvent(new CustomEvent('socketNotification', { detail: data }));
+    },
+    onOrderUpdate: (data) => {
+      console.log('Order update received:', data);
+      window.dispatchEvent(new CustomEvent('socketOrderUpdate', { detail: data }));
+    },
+  });
 
   if (isDashboardRoute) {
     return (
