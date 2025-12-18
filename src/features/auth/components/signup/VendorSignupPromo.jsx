@@ -23,7 +23,7 @@ const VendorSignupPromo = () => {
             Join as Vendor
           </h1>
           <p className="text-white/80 text-lg mb-4">
-            Sell your momos and grow your business with us
+            Sell your momo and grow your business with us
           </p>
           <div className="inline-block px-5 py-2.5 bg-golden-amber/20 rounded-full border border-golden-amber/30">
             <p className="text-sm text-golden-amber font-semibold">व्यापारी - Vendor</p>

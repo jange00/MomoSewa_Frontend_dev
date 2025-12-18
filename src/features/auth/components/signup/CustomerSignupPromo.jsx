@@ -23,7 +23,7 @@ const CustomerSignupPromo = () => {
             Join as Customer
           </h1>
           <p className="text-white/80 text-lg mb-4">
-            Order delicious momos and get them delivered to your doorstep
+            Order delicious momo and get them delivered to your doorstep
           </p>
           <div className="inline-block px-5 py-2.5 bg-golden-amber/20 rounded-full border border-golden-amber/30">
             <p className="text-sm text-golden-amber font-semibold">स्वागत छ - Welcome</p>
@@ -57,7 +57,7 @@ const CustomerSignupPromo = () => {
             <p className="text-golden-amber text-sm font-semibold italic">
               "ताजा मोमो, तुरुन्त वितरण"
             </p>
-            <p className="text-white/60 text-xs mt-1">Fresh Momos, Instant Delivery</p>
+            <p className="text-white/60 text-xs mt-1">Fresh Momo, Instant Delivery</p>
           </div>
         </div>
 

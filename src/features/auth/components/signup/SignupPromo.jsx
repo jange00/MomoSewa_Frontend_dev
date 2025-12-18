@@ -23,7 +23,7 @@ const SignupPromo = () => {
             Join Us Today
           </h1>
           <p className="text-white/80 text-lg mb-3">
-            Create your account and start ordering delicious momos
+            Create your account and start ordering delicious momo
           </p>
           <div className="inline-block px-5 py-2.5 bg-golden-amber/20 rounded-full border border-golden-amber/30">
             <p className="text-sm text-golden-amber font-semibold">स्वागत छ - Welcome</p>
@@ -36,13 +36,13 @@ const SignupPromo = () => {
             Start Your Momo Journey
           </h3>
           <p className="text-white/80 text-sm leading-relaxed mb-3">
-            Join thousands of customers enjoying fresh, authentic momos delivered right to their doorstep. Customize your orders and track deliveries in real-time.
+            Join thousands of customers enjoying fresh, authentic momo delivered right to their doorstep. Customize your orders and track deliveries in real-time.
           </p>
           <div className="pt-3 border-t border-white/10">
             <p className="text-golden-amber text-sm font-semibold italic">
               "ताजा मोमो, तुरुन्त वितरण"
             </p>
-            <p className="text-white/60 text-xs mt-1">Fresh Momos, Instant Delivery</p>
+            <p className="text-white/60 text-xs mt-1">Fresh Momo, Instant Delivery</p>
           </div>
         </div>
 

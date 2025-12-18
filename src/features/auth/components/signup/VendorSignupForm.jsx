@@ -96,19 +96,30 @@ const VendorSignupForm = ({
               name="businessAddress"
             />
 
+            {/* Store Name Input */}
+            <Input
+              label="Store Name"
+              type="text"
+              placeholder="Enter your store name"
+              value={formData.storeName || ""}
+              onChange={handleChange}
+              error={errors.storeName}
+              icon={FiShoppingBag}
+              required
+              name="storeName"
+            />
+
             {/* Business License Input (Optional) */}
-            {formData.businessLicense !== undefined && (
-              <Input
-                label="Business License (Optional)"
-                type="text"
-                placeholder="Enter business license number"
-                value={formData.businessLicense || ""}
-                onChange={handleChange}
-                error={errors.businessLicense}
-                icon={FiFileText}
-                name="businessLicense"
-              />
-            )}
+            <Input
+              label="Business License (Optional)"
+              type="text"
+              placeholder="Enter business license number"
+              value={formData.businessLicense || ""}
+              onChange={handleChange}
+              error={errors.businessLicense}
+              icon={FiFileText}
+              name="businessLicense"
+            />
 
             {/* Password Input */}
             <Input
