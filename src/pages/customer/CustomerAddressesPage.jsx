@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FiMapPin, FiEdit, FiTrash2, FiPlus, FiCheck } from "react-icons/fi";
+import { FiMapPin, FiEdit, FiTrash2, FiPlus, FiCheck, FiPhone } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
@@ -11,7 +11,7 @@ import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
 
 const CustomerAddressesPage = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   // Fetch addresses from API
   const { data: addressesData, isLoading, refetch } = useGet(
@@ -54,6 +54,7 @@ const CustomerAddressesPage = () => {
     city: "",
     area: "",
     landmark: "",
+    phone: "",
   });
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -106,13 +107,22 @@ const CustomerAddressesPage = () => {
       city: address.city || "",
       area: address.area || "",
       landmark: address.landmark || "",
+      phone: address.phone || "",
     });
     setIsAdding(false);
   };
 
   const handleSaveAddress = async () => {
-    if (!formData.label || !formData.address || !formData.city) {
-      toast.error("Please fill in at least label, address, and city");
+    if (!formData.label || !formData.address || !formData.city || !formData.phone) {
+      toast.error("Please fill in label, address, city, and phone number");
+      return;
+    }
+
+    // Get fullName from user profile
+    const fullName = user?.name || "";
+
+    if (!fullName) {
+      toast.error("Unable to get your name. Please refresh the page.");
       return;
     }
 
@@ -122,12 +132,15 @@ const CustomerAddressesPage = () => {
         try {
           const response = await apiClient.put(
             `${API_ENDPOINTS.ADDRESSES}/${editingId}`,
-            { ...formData }
+            { 
+              ...formData,
+              fullName: fullName,
+            }
           );
           if (response.data.success) {
             toast.success(response.data.message || "Address updated successfully");
             refetch();
-            setFormData({ label: "", address: "", city: "", area: "", landmark: "" });
+            setFormData({ label: "", address: "", city: "", area: "", landmark: "", phone: "" });
             setIsAdding(false);
             setEditingId(null);
           }
@@ -140,12 +153,13 @@ const CustomerAddressesPage = () => {
         await createAddressMutation.mutateAsync(
           {
             ...formData,
+            fullName: fullName,
             isDefault: addresses.length === 0,
           },
           {
             onSuccess: () => {
               refetch();
-              setFormData({ label: "", address: "", city: "", area: "", landmark: "" });
+              setFormData({ label: "", address: "", city: "", area: "", landmark: "", phone: "" });
               setIsAdding(false);
               setEditingId(null);
             },
@@ -158,7 +172,7 @@ const CustomerAddressesPage = () => {
   };
 
   const handleCancel = () => {
-    setFormData({ label: "", address: "", city: "", area: "", landmark: "" });
+    setFormData({ label: "", address: "", city: "", area: "", landmark: "", phone: "" });
     setIsAdding(false);
     setEditingId(null);
   };
@@ -204,6 +218,21 @@ const CustomerAddressesPage = () => {
                   placeholder="Home, Office, Work..."
                   className="w-full px-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                  Phone Number <span className="text-deep-maroon">*</span>
+                </label>
+                <div className="relative">
+                  <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-charcoal-grey/40" />
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+977 9800000000"
+                    className="w-full pl-10 pr-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-charcoal-grey mb-2">
@@ -300,6 +329,13 @@ const CustomerAddressesPage = () => {
               </div>
               
               <div className="space-y-2 mb-4 text-charcoal-grey/80">
+                {address.fullName && <p className="font-semibold">{address.fullName}</p>}
+                {address.phone && (
+                  <p className="text-sm text-charcoal-grey/60 flex items-center gap-2">
+                    <FiPhone className="w-4 h-4" />
+                    {address.phone}
+                  </p>
+                )}
                 <p>{address.address}</p>
                 {address.landmark && <p className="text-sm text-charcoal-grey/60">Near: {address.landmark}</p>}
                 <p className="text-sm text-charcoal-grey/60">{address.area}, {address.city}</p>
