@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
-import { FiMapPin, FiEdit, FiTrash2, FiPlus, FiCheck, FiPhone } from "react-icons/fi";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { FiMapPin, FiEdit, FiTrash2, FiPlus, FiCheck, FiPhone, FiFilter } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
 import ConfirmDialog from "../../ui/modals/ConfirmDialog";
-import MapLocationPicker from "../../features/checkout/components/MapLocationPicker";
 import { useAuth } from "../../hooks/useAuth";
 import { useGet, usePost, usePatch, useDelete } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
@@ -12,6 +11,18 @@ import apiClient from "../../api/client";
 
 const CustomerAddressesPage = () => {
   const { isAuthenticated, user } = useAuth();
+  
+  // Available cities for filtering
+  const cities = [
+    { value: 'all', label: 'All Cities' },
+    { value: 'Kathmandu', label: 'Kathmandu' },
+    { value: 'Bhaktapur', label: 'Bhaktapur' },
+    { value: 'Lalitpur', label: 'Lalitpur' },
+    { value: 'Kritipur', label: 'Kritipur' },
+  ];
+
+  // City filter state
+  const [selectedCity, setSelectedCity] = useState('all');
   
   // Fetch addresses from API
   const { data: addressesData, isLoading, refetch } = useGet(
@@ -24,8 +35,27 @@ const CustomerAddressesPage = () => {
     }
   );
 
-  const addresses = Array.isArray(addressesData?.data?.addresses) ? addressesData.data.addresses :
-                    Array.isArray(addressesData?.data) ? addressesData.data : [];
+  // Memoize addresses to prevent infinite loop
+  const addresses = useMemo(() => {
+    if (!addressesData) return [];
+    if (Array.isArray(addressesData.data?.addresses)) {
+      return addressesData.data.addresses;
+    }
+    if (Array.isArray(addressesData.data)) {
+      return addressesData.data;
+    }
+    return [];
+  }, [addressesData]);
+
+  // Filter addresses based on selected city
+  const filteredAddresses = useMemo(() => {
+    if (selectedCity === 'all') {
+      return addresses;
+    }
+    return addresses.filter(addr => 
+      addr.city && addr.city.toLowerCase() === selectedCity.toLowerCase()
+    );
+  }, [selectedCity, addresses]);
 
   // Create address mutation
   const createAddressMutation = usePost('addresses', API_ENDPOINTS.ADDRESSES, {
@@ -50,12 +80,14 @@ const CustomerAddressesPage = () => {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     label: "",
-    address: "",
     city: "",
     area: "",
-    landmark: "",
+    nearestLandmark: "",
     phone: "",
+    postalCode: "",
   });
+  const [availableAreas, setAvailableAreas] = useState([]);
+  const [loadingAreas, setLoadingAreas] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: "",
@@ -63,6 +95,41 @@ const CustomerAddressesPage = () => {
     onConfirm: null,
     variant: "danger",
   });
+
+  // Fetch areas function
+  const fetchAreas = useCallback(async (city) => {
+    try {
+      setLoadingAreas(true);
+      const response = await apiClient.get(`${API_ENDPOINTS.ADDRESSES}/areas/${city}`);
+      if (response.data.success) {
+        setAvailableAreas(response.data.data.areas || []);
+        
+        // If editing and current area is not in the new city's areas, clear it
+        setFormData(prev => {
+          if (prev.area && !response.data.data.areas?.includes(prev.area)) {
+            return { ...prev, area: "" };
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching areas:', error);
+      setAvailableAreas([]);
+      toast.error('Failed to load areas for this city');
+    } finally {
+      setLoadingAreas(false);
+    }
+  }, []);
+
+  // Fetch areas when city changes
+  useEffect(() => {
+    if (formData.city) {
+      fetchAreas(formData.city);
+    } else {
+      setAvailableAreas([]);
+      setFormData(prev => ({ ...prev, area: "" })); // Clear area when city changes
+    }
+  }, [formData.city, fetchAreas]);
 
   const handleDelete = (id) => {
     const address = addresses.find((addr) => (addr._id || addr.id) === id);
@@ -103,18 +170,22 @@ const CustomerAddressesPage = () => {
     setEditingId(address._id || address.id);
     setFormData({
       label: address.label || "",
-      address: address.address || "",
       city: address.city || "",
       area: address.area || "",
-      landmark: address.landmark || "",
+      nearestLandmark: address.nearestLandmark || address.landmark || "",
       phone: address.phone || "",
+      postalCode: address.postalCode || "",
     });
     setIsAdding(false);
+    // Fetch areas for the city if city is set
+    if (address.city) {
+      fetchAreas(address.city);
+    }
   };
 
   const handleSaveAddress = async () => {
-    if (!formData.label || !formData.address || !formData.city || !formData.phone) {
-      toast.error("Please fill in label, address, city, and phone number");
+    if (!formData.label || !formData.city || !formData.area || !formData.nearestLandmark || !formData.phone) {
+      toast.error("Please fill in all required fields: label, city, area, nearest landmark, and phone number");
       return;
     }
 
@@ -133,14 +204,20 @@ const CustomerAddressesPage = () => {
           const response = await apiClient.put(
             `${API_ENDPOINTS.ADDRESSES}/${editingId}`,
             { 
-              ...formData,
+              label: formData.label,
+              city: formData.city,
+              area: formData.area,
+              nearestLandmark: formData.nearestLandmark,
+              phone: formData.phone,
+              postalCode: formData.postalCode || undefined,
               fullName: fullName,
             }
           );
           if (response.data.success) {
             toast.success(response.data.message || "Address updated successfully");
             refetch();
-            setFormData({ label: "", address: "", city: "", area: "", landmark: "", phone: "" });
+            setFormData({ label: "", city: "", area: "", nearestLandmark: "", phone: "", postalCode: "" });
+            setAvailableAreas([]);
             setIsAdding(false);
             setEditingId(null);
           }
@@ -152,14 +229,20 @@ const CustomerAddressesPage = () => {
         // Add new address
         await createAddressMutation.mutateAsync(
           {
-            ...formData,
+            label: formData.label,
+            city: formData.city,
+            area: formData.area,
+            nearestLandmark: formData.nearestLandmark,
+            phone: formData.phone,
+            postalCode: formData.postalCode || undefined,
             fullName: fullName,
             isDefault: addresses.length === 0,
           },
           {
             onSuccess: () => {
               refetch();
-              setFormData({ label: "", address: "", city: "", area: "", landmark: "", phone: "" });
+              setFormData({ label: "", city: "", area: "", nearestLandmark: "", phone: "", postalCode: "" });
+              setAvailableAreas([]);
               setIsAdding(false);
               setEditingId(null);
             },
@@ -172,9 +255,14 @@ const CustomerAddressesPage = () => {
   };
 
   const handleCancel = () => {
-    setFormData({ label: "", address: "", city: "", area: "", landmark: "", phone: "" });
+    setFormData({ label: "", city: "", area: "", nearestLandmark: "", phone: "", postalCode: "" });
+    setAvailableAreas([]);
     setIsAdding(false);
     setEditingId(null);
+  };
+
+  const handleCityChange = (e) => {
+    setSelectedCity(e.target.value);
   };
 
   return (
@@ -200,6 +288,35 @@ const CustomerAddressesPage = () => {
           </Button>
         </div>
 
+        {/* City Filter Section */}
+        {!isLoading && addresses.length > 0 && (
+          <Card className="p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <FiFilter className="w-5 h-5 text-charcoal-grey/60" />
+                <label htmlFor="city-select" className="text-sm font-semibold text-charcoal-grey">
+                  Filter by City:
+                </label>
+              </div>
+              <select
+                id="city-select"
+                value={selectedCity}
+                onChange={handleCityChange}
+                className="px-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm font-medium min-w-[200px] cursor-pointer"
+              >
+                {cities.map(city => (
+                  <option key={city.value} value={city.value}>
+                    {city.label}
+                  </option>
+                ))}
+              </select>
+              <div className="ml-auto text-sm text-charcoal-grey/60">
+                Showing <span className="font-semibold text-charcoal-grey">{filteredAddresses.length}</span> of <span className="font-semibold text-charcoal-grey">{addresses.length}</span> address{addresses.length !== 1 ? 'es' : ''}
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Add/Edit Address Form */}
         {(isAdding || editingId) && (
           <Card className="p-6">
@@ -209,7 +326,7 @@ const CustomerAddressesPage = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-charcoal-grey mb-2">
-                  Label (e.g., Home, Office)
+                  Label (e.g., Home, Office) <span className="text-deep-maroon">*</span>
                 </label>
                 <input
                   type="text"
@@ -234,58 +351,88 @@ const CustomerAddressesPage = () => {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-charcoal-grey mb-2">
-                  Address
-                </label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Street address"
-                  className="w-full px-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm"
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-charcoal-grey mb-2">
-                    City
+                    City <span className="text-deep-maroon">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    placeholder="Kathmandu"
-                    className="w-full px-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm"
-                  />
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value, area: "" })}
+                    className="w-full px-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm cursor-pointer"
+                  >
+                    <option value="">Select a city</option>
+                    {cities.filter(c => c.value !== 'all').map(city => (
+                      <option key={city.value} value={city.value}>
+                        {city.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-charcoal-grey mb-2">
-                    Area
+                    Area <span className="text-deep-maroon">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.area}
                     onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                    placeholder="Thamel"
-                    className="w-full px-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm"
-                  />
+                    disabled={!formData.city || loadingAreas}
+                    className="w-full px-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm cursor-pointer disabled:bg-charcoal-grey/5 disabled:cursor-not-allowed disabled:text-charcoal-grey/40"
+                  >
+                    <option value="">
+                      {loadingAreas 
+                        ? 'Loading areas...' 
+                        : !formData.city 
+                          ? 'Select city first' 
+                          : 'Select Area'
+                      }
+                    </option>
+                    {availableAreas.map(area => (
+                      <option key={area} value={area}>
+                        {area}
+                      </option>
+                    ))}
+                  </select>
+                  {loadingAreas && (
+                    <p className="text-xs text-charcoal-grey/60 mt-1">Loading areas...</p>
+                  )}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-charcoal-grey mb-2">
-                  Landmark (Optional)
+                  Nearest Landmark <span className="text-deep-maroon">*</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.landmark}
-                  onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
-                  placeholder="Near ABC Mall"
+                  value={formData.nearestLandmark}
+                  onChange={(e) => setFormData({ ...formData, nearestLandmark: e.target.value })}
+                  placeholder="e.g., Near ABC Hospital, Opposite XYZ Mall"
+                  className="w-full px-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm"
+                />
+                <p className="text-xs text-charcoal-grey/60 mt-1 italic">
+                  Enter a nearby landmark to help locate your address
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                  Postal Code (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={formData.postalCode}
+                  onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                  placeholder="Enter postal code"
                   className="w-full px-4 py-2 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white text-sm"
                 />
               </div>
               <div className="flex gap-3">
-                <Button variant="primary" size="md" className="flex-1" onClick={handleSaveAddress}>
+                <Button 
+                  variant="primary" 
+                  size="md" 
+                  className="flex-1" 
+                  onClick={handleSaveAddress}
+                  disabled={loadingAreas}
+                >
                   {editingId ? "Update Address" : "Save Address"}
                 </Button>
                 <Button variant="ghost" size="md" className="flex-1" onClick={handleCancel}>
@@ -305,8 +452,46 @@ const CustomerAddressesPage = () => {
 
         {/* Addresses List */}
         {!isLoading && Array.isArray(addresses) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {addresses.map((address) => {
+          <>
+            {filteredAddresses.length === 0 ? (
+              <Card className="p-12">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">📍</div>
+                  <h3 className="text-xl font-bold text-charcoal-grey mb-2">
+                    {selectedCity === 'all' 
+                      ? 'No addresses saved'
+                      : `No addresses found in ${cities.find(c => c.value === selectedCity)?.label || selectedCity}`
+                    }
+                  </h3>
+                  <p className="text-charcoal-grey/60 mb-6">
+                    {selectedCity === 'all'
+                      ? 'Add your first delivery address to get started'
+                      : `Try selecting a different city or add a new address in ${cities.find(c => c.value === selectedCity)?.label || selectedCity}`
+                    }
+                  </p>
+                  {selectedCity !== 'all' && (
+                    <Button
+                      variant="ghost"
+                      size="md"
+                      onClick={() => setSelectedCity('all')}
+                      className="mb-4"
+                    >
+                      Show All Addresses
+                    </Button>
+                  )}
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => setIsAdding(true)}
+                  >
+                    <FiPlus className="w-5 h-5" />
+                    Add Address
+                  </Button>
+                </div>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredAddresses.map((address) => {
               if (!address) return null;
               const addressId = address._id || address.id;
               if (!addressId) return null;
@@ -336,9 +521,22 @@ const CustomerAddressesPage = () => {
                     {address.phone}
                   </p>
                 )}
-                <p>{address.address}</p>
-                {address.landmark && <p className="text-sm text-charcoal-grey/60">Near: {address.landmark}</p>}
-                <p className="text-sm text-charcoal-grey/60">{address.area}, {address.city}</p>
+                <p className="text-sm text-charcoal-grey/60">
+                  <span className="font-semibold">City:</span> {address.city}
+                </p>
+                <p className="text-sm text-charcoal-grey/60">
+                  <span className="font-semibold">Area:</span> {address.area}
+                </p>
+                {(address.nearestLandmark || address.landmark) && (
+                  <p className="text-sm text-charcoal-grey/60">
+                    <span className="font-semibold">Nearest Landmark:</span> {address.nearestLandmark || address.landmark}
+                  </p>
+                )}
+                {address.postalCode && (
+                  <p className="text-sm text-charcoal-grey/60">
+                    <span className="font-semibold">Postal Code:</span> {address.postalCode}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-3 pt-4 border-t border-charcoal-grey/10">
@@ -369,27 +567,9 @@ const CustomerAddressesPage = () => {
             </Card>
               );
             })}
-          </div>
-        )}
-
-        {!isLoading && addresses.length === 0 && (
-          <Card className="p-12">
-            <div className="text-center">
-              <div className="text-6xl mb-4">📍</div>
-              <h3 className="text-xl font-bold text-charcoal-grey mb-2">No addresses saved</h3>
-              <p className="text-charcoal-grey/60 mb-6">
-                Add your first delivery address to get started
-              </p>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => setIsAdding(true)}
-              >
-                <FiPlus className="w-5 h-5" />
-                Add Address
-              </Button>
-            </div>
-          </Card>
+              </div>
+            )}
+          </>
         )}
 
         {/* Confirmation Dialog */}
