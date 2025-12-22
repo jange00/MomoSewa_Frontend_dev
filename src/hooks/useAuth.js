@@ -9,6 +9,7 @@ import {
   getUser,
   isAuthenticated,
   clearAuthData,
+  setUser,
 } from '../utils/tokenManager';
 import * as authService from '../services/authService';
 import { initializeSocket, disconnectSocket, reconnectSocket } from '../socket/socketClient';
@@ -187,7 +188,6 @@ export const useAuth = () => {
 
   const updateUser = useCallback((userData) => {
     setUserState(userData);
-    const { setUser } = require('../utils/tokenManager');
     setUser(userData);
   }, []);
 

@@ -46,6 +46,7 @@ const Input = ({
             placeholder:text-charcoal-grey/35
             text-sm font-medium
             ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/25' : ''}
+            ${props.disabled ? 'bg-charcoal-grey/5 cursor-not-allowed opacity-60' : ''}
           `}
           {...props}
         />
