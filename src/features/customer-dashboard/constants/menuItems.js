@@ -7,10 +7,8 @@ import {
   FiUser
 } from "react-icons/fi";
 
-/**
- * Dashboard menu items configuration
- * This can be easily extended or modified for different user roles or permissions
- */
+// Dashboard menu items configuration
+// This can be easily extended or modified for different user roles or permissions
 export const DASHBOARD_MENU_ITEMS = [
   { path: "/customer/dashboard", label: "Dashboard", icon: FiHome },
   { path: "/customer/orders", label: "My Orders", icon: FiPackage },

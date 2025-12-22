@@ -8,10 +8,8 @@ import {
   FiBell
 } from "react-icons/fi";
 
-/**
- * Vendor Dashboard menu items configuration
- * This can be easily extended or modified for different vendor permissions
- */
+// Vendor Dashboard menu items configuration
+// This can be easily extended or modified for different vendor permissions
 export const VENDOR_DASHBOARD_MENU_ITEMS = [
   { path: "/vendor/dashboard", label: "Dashboard", icon: FiHome },
   { path: "/vendor/orders", label: "Orders", icon: FiPackage },

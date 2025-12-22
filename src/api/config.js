@@ -1,7 +1,7 @@
-/**
- * API Configuration
- * Base URL and configuration for backend API
- */
+
+ // API Configuration
+ // Base URL and configuration for backend API
+ 
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
 // WebSocket URL - use ws:// for development, wss:// for production
@@ -49,14 +49,13 @@ export const API_ENDPOINTS = {
   HEALTH: '/api/health',
 };
 
-/**
- * Request timeout in milliseconds
- */
+
+ // Request timeout in milliseconds
+ 
 export const REQUEST_TIMEOUT = 30000; // 30 seconds
 
-/**
- * Token expiration times (in milliseconds)
- */
+
+// Token expiration times (in milliseconds)
 export const TOKEN_EXPIRATION = {
   ACCESS_TOKEN: 15 * 60 * 1000, // 15 minutes
   REFRESH_TOKEN: 7 * 24 * 60 * 60 * 1000, // 7 days

@@ -1,7 +1,6 @@
-/**
- * Vendor Data Utility
- * Handles vendor data storage and retrieval from localStorage
- */
+ // Vendor Data Utility
+ // Handles vendor data storage and retrieval from localStorage
+ 
 
 const VENDOR_STORAGE_KEYS = {
   ROLE: "role",
@@ -17,9 +16,8 @@ const VENDOR_STORAGE_KEYS = {
   VENDOR_ID: "vendorId",
 };
 
-/**
- * Save vendor details to localStorage
- */
+ // Save vendor details to localStorage
+
 export const saveVendorData = (vendorData) => {
   if (vendorData.role) localStorage.setItem(VENDOR_STORAGE_KEYS.ROLE, vendorData.role);
   if (vendorData.name) localStorage.setItem(VENDOR_STORAGE_KEYS.NAME, vendorData.name);
@@ -34,9 +32,7 @@ export const saveVendorData = (vendorData) => {
   if (vendorData.vendorId) localStorage.setItem(VENDOR_STORAGE_KEYS.VENDOR_ID, vendorData.vendorId);
 };
 
-/**
- * Get vendor data from localStorage
- */
+ // Get vendor data from localStorage
 export const getVendorData = () => {
   return {
     role: localStorage.getItem(VENDOR_STORAGE_KEYS.ROLE) || "",
@@ -53,18 +49,14 @@ export const getVendorData = () => {
   };
 };
 
-/**
- * Clear all vendor data from localStorage
- */
+// Clear all vendor data from localStorage
 export const clearVendorData = () => {
   Object.values(VENDOR_STORAGE_KEYS).forEach((key) => {
     localStorage.removeItem(key);
   });
 };
 
-/**
- * Update specific vendor field
- */
+// Update specific vendor field
 export const updateVendorField = (field, value) => {
   const key = VENDOR_STORAGE_KEYS[field.toUpperCase()];
   if (key) {

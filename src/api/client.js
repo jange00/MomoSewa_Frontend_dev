@@ -1,7 +1,7 @@
-/**
- * API Client with Axios
- * Configured with interceptors for automatic token management
- */
+
+ // API Client with Axios
+ // Configured with interceptors for automatic token management
+ 
 
 import axios from 'axios';
 import { API_BASE_URL, REQUEST_TIMEOUT } from './config';
@@ -40,7 +40,6 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    // Don't try to refresh token for auth endpoints (login, register, etc.)
     // These endpoints return 401 for invalid credentials, not expired tokens
     const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || 
                           originalRequest.url?.includes('/auth/register') ||
@@ -99,15 +98,13 @@ apiClient.interceptors.response.use(
     }
 
     // For auth endpoints with 401, or other errors, just reject
-    // This allows the login/register handlers to show proper error messages
     return Promise.reject(error);
   }
 );
 
-/**
- * API Response Handler
- * Standardizes API responses
- */
+
+ //API Response Handler
+
 export const handleApiResponse = (response) => {
   console.log('API Response:', response);
   console.log('API Response Data:', response.data);
@@ -134,10 +131,9 @@ export const handleApiResponse = (response) => {
   throw new Error(response.data?.message || 'API request failed');
 };
 
-/**
- * API Error Handler
- * Formats error messages for display
- */
+
+ // API Error Handler
+ 
 export const handleApiError = (error) => {
   console.log('API Error:', error);
   console.log('API Error Response:', error.response);

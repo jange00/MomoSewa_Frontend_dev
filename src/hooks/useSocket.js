@@ -1,7 +1,5 @@
-/**
- * useSocket Hook
- * Provides Socket.IO connection management in React components
- */
+// useSocket Hook
+// Provides Socket.IO connection management in React components
 
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -14,14 +12,6 @@ import {
 } from '../socket/socketClient';
 import { useAuth } from './useAuth';
 
-/**
- * Custom hook for Socket.IO connection
- * @param {Object} options - Hook options
- * @param {boolean} [options.autoConnect=true] - Automatically connect on mount
- * @param {Function} [options.onNotification] - Callback for notifications
- * @param {Function} [options.onOrderUpdate] - Callback for order updates
- * @returns {Object} Socket state and methods
- */
 export const useSocket = (options = {}) => {
   const { autoConnect = true, onNotification, onOrderUpdate } = options;
   const { isAuthenticated, accessToken } = useAuth();

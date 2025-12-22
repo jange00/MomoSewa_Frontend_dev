@@ -1,16 +1,9 @@
-/**
- * Order Service
- * Handles all order-related API calls
- */
+// Order Service
+// Handles all order-related API calls
 
 import apiClient, { handleApiResponse, handleApiError } from '../api/client';
 import { API_ENDPOINTS } from '../api/config';
 
-/**
- * Get all orders
- * @param {Object} params - Query parameters (page, limit, status, etc.)
- * @returns {Promise<Object>} Orders response
- */
 export const getOrders = async (params = {}) => {
   try {
     const response = await apiClient.get(API_ENDPOINTS.ORDERS, { params });
@@ -20,11 +13,6 @@ export const getOrders = async (params = {}) => {
   }
 };
 
-/**
- * Get order by ID
- * @param {string} orderId - Order ID
- * @returns {Promise<Object>} Order response
- */
 export const getOrderById = async (orderId) => {
   try {
     const response = await apiClient.get(`${API_ENDPOINTS.ORDERS}/${orderId}`);
@@ -34,11 +22,6 @@ export const getOrderById = async (orderId) => {
   }
 };
 
-/**
- * Create a new order
- * @param {Object} orderData - Order data
- * @returns {Promise<Object>} Created order response
- */
 export const createOrder = async (orderData) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.ORDERS, orderData);
@@ -48,12 +31,6 @@ export const createOrder = async (orderData) => {
   }
 };
 
-/**
- * Update order status
- * @param {string} orderId - Order ID
- * @param {string} status - New status (pending, preparing, on-the-way, delivered, cancelled)
- * @returns {Promise<Object>} Updated order response
- */
 export const updateOrderStatus = async (orderId, status) => {
   try {
     // According to backend: PUT /orders/:id/status
@@ -67,12 +44,6 @@ export const updateOrderStatus = async (orderId, status) => {
   }
 };
 
-/**
- * Update order (general update)
- * @param {string} orderId - Order ID
- * @param {Object} updateData - Update data
- * @returns {Promise<Object>} Updated order response
- */
 export const updateOrder = async (orderId, updateData) => {
   try {
     const response = await apiClient.patch(
@@ -85,12 +56,6 @@ export const updateOrder = async (orderId, updateData) => {
   }
 };
 
-/**
- * Cancel an order
- * @param {string} orderId - Order ID
- * @param {string} reason - Cancellation reason (optional)
- * @returns {Promise<Object>} Cancelled order response
- */
 export const cancelOrder = async (orderId, reason = '') => {
   try {
     // According to backend: PUT /orders/:id/cancel

@@ -1,8 +1,3 @@
-/**
- * Format date to readable string
- * @param {string|Date} date - Date to format
- * @returns {string} Formatted date string
- */
 export const formatDate = (date) => {
   if (!date) return "";
   
@@ -16,11 +11,6 @@ export const formatDate = (date) => {
   });
 };
 
-/**
- * Format currency (Nepali Rupees)
- * @param {number} amount - Amount to format
- * @returns {string} Formatted currency string
- */
 export const formatCurrency = (amount) => {
   return `Rs. ${amount.toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -28,10 +18,6 @@ export const formatCurrency = (amount) => {
   })}`;
 };
 
-/**
- * Get greeting based on time of day
- * @returns {string} Greeting message
- */
 export const getGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return "Good Morning";

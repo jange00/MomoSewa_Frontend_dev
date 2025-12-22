@@ -1,7 +1,5 @@
-/**
- * Authentication Service
- * Handles all authentication-related API calls
- */
+//Authentication Service
+// Handles all authentication-related API calls
 
 import axios from 'axios';
 import apiClient, { handleApiResponse, handleApiError } from '../api/client';
@@ -13,20 +11,6 @@ import {
   clearAuthData,
 } from '../utils/tokenManager';
 
-/**
- * Register a new user
- * @param {Object} userData - User registration data
- * @param {string} userData.name - User's full name
- * @param {string} userData.email - User's email
- * @param {string} userData.phone - User's phone number
- * @param {string} userData.password - User's password
- * @param {string} userData.role - User's role (Customer, Vendor, Admin)
- * @param {string} [userData.businessName] - Business name (for vendors)
- * @param {string} [userData.businessAddress] - Business address (for vendors)
- * @param {string} [userData.businessLicense] - Business license (for vendors)
- * @param {string} [userData.storeName] - Store name (for vendors)
- * @returns {Promise<Object>} Registration response with user and tokens
- */
 export const register = async (userData) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.AUTH.REGISTER, userData);
@@ -66,14 +50,6 @@ export const register = async (userData) => {
   }
 };
 
-/**
- * Login user with email or phone
- * @param {Object} credentials - Login credentials
- * @param {string} [credentials.email] - User's email
- * @param {string} [credentials.phone] - User's phone number
- * @param {string} credentials.password - User's password
- * @returns {Promise<Object>} Login response with user and tokens
- */
 export const login = async (credentials) => {
   try {
     console.log('🔐 Login attempt:', { 
@@ -92,7 +68,7 @@ export const login = async (credentials) => {
     });
     
     const result = handleApiResponse(response);
-    console.log('✅ Login result after handleApiResponse:', result);
+    // console.log('✅ Login result after handleApiResponse:', result);
 
     if (result.success && result.data) {
       // Store tokens and user data
@@ -106,22 +82,18 @@ export const login = async (credentials) => {
 
     return result;
   } catch (error) {
-    console.error('❌ Login error caught:', error);
-    console.error('❌ Error type:', error.constructor.name);
-    console.error('❌ Error response:', error.response);
-    console.error('❌ Error response data:', error.response?.data);
-    console.error('❌ Error response status:', error.response?.status);
+    // console.error('❌ Login error caught:', error);
+    // console.error('❌ Error type:', error.constructor.name);
+    // console.error('❌ Error response:', error.response);
+    // console.error('❌ Error response data:', error.response?.data);
+    // console.error('❌ Error response status:', error.response?.status);
     
     const formattedError = handleApiError(error);
-    console.error('❌ Formatted error:', formattedError);
+    // console.error('❌ Formatted error:', formattedError);
     throw formattedError;
   }
 };
 
-/**
- * Logout user
- * @returns {Promise<Object>} Logout response
- */
 export const logout = async () => {
   try {
     await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT);
@@ -135,11 +107,6 @@ export const logout = async () => {
   }
 };
 
-/**
- * Refresh access token
- * @param {string} refreshToken - Refresh token
- * @returns {Promise<Object>} New access token
- */
 export const refreshAccessToken = async (refreshToken) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.AUTH.REFRESH, {
@@ -159,13 +126,6 @@ export const refreshAccessToken = async (refreshToken) => {
   }
 };
 
-/**
- * Request password reset
- * @param {Object} data - Password reset request data
- * @param {string} [data.email] - User's email
- * @param {string} [data.phone] - User's phone number
- * @returns {Promise<Object>} Password reset response
- */
 export const forgotPassword = async (data) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, data);
@@ -175,13 +135,6 @@ export const forgotPassword = async (data) => {
   }
 };
 
-/**
- * Reset password with token
- * @param {Object} data - Password reset data
- * @param {string} data.token - Reset token from email
- * @param {string} data.newPassword - New password
- * @returns {Promise<Object>} Password reset response
- */
 export const resetPassword = async (data) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data);
@@ -191,12 +144,6 @@ export const resetPassword = async (data) => {
   }
 };
 
-/**
- * Verify email with token
- * @param {Object} data - Email verification data
- * @param {string} data.token - Verification token
- * @returns {Promise<Object>} Email verification response
- */
 export const verifyEmail = async (data) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.AUTH.VERIFY_EMAIL, data);
@@ -206,12 +153,6 @@ export const verifyEmail = async (data) => {
   }
 };
 
-/**
- * Verify phone with code
- * @param {Object} data - Phone verification data
- * @param {string} data.code - Verification code
- * @returns {Promise<Object>} Phone verification response
- */
 export const verifyPhone = async (data) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.AUTH.VERIFY_PHONE, data);
@@ -228,11 +169,6 @@ export const verifyPhone = async (data) => {
   }
 };
 
-/**
- * Health check endpoint
- * Note: Health check is at /api/health (not under /api/v1)
- * @returns {Promise<Object>} Health check response
- */
 export const healthCheck = async () => {
   try {
     // Health check is outside the v1 API, so use full URL

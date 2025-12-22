@@ -1,7 +1,5 @@
-/**
- * Socket.IO Client
- * Handles real-time WebSocket connections for notifications
- */
+// Socket.IO Client
+// Handles real-time WebSocket connections for notifications
 
 import { io } from 'socket.io-client';
 import { WS_URL } from '../api/config';
@@ -9,11 +7,6 @@ import { getAccessToken } from '../utils/tokenManager';
 
 let socket = null;
 
-/**
- * Initialize Socket.IO connection
- * @param {string} accessToken - Access token for authentication
- * @returns {Object} Socket instance
- */
 export const initializeSocket = (accessToken = null) => {
   const token = accessToken || getAccessToken();
 
@@ -64,17 +57,11 @@ export const initializeSocket = (accessToken = null) => {
   return socket;
 };
 
-/**
- * Get current socket instance
- * @returns {Object|null} Socket instance or null
- */
 export const getSocket = () => {
   return socket;
 };
 
-/**
- * Disconnect socket
- */
+// Disconnect socket
 export const disconnectSocket = () => {
   if (socket) {
     // Remove all event listeners before disconnecting
@@ -84,20 +71,13 @@ export const disconnectSocket = () => {
   }
 };
 
-/**
- * Reconnect socket with new token
- * @param {string} accessToken - New access token
- */
+
 export const reconnectSocket = (accessToken) => {
   disconnectSocket();
   return initializeSocket(accessToken);
 };
 
-/**
- * Subscribe to notifications
- * @param {Function} callback - Callback function for notifications
- * @returns {Function} Unsubscribe function
- */
+
 export const subscribeToNotifications = (callback) => {
   if (!socket) {
     console.warn('Socket not initialized');
@@ -116,11 +96,7 @@ export const subscribeToNotifications = (callback) => {
   };
 };
 
-/**
- * Subscribe to order updates
- * @param {Function} callback - Callback function for order updates
- * @returns {Function} Unsubscribe function
- */
+
 export const subscribeToOrderUpdates = (callback) => {
   if (!socket) {
     console.warn('Socket not initialized');
@@ -139,11 +115,7 @@ export const subscribeToOrderUpdates = (callback) => {
   };
 };
 
-/**
- * Emit custom event
- * @param {string} event - Event name
- * @param {Object} data - Event data
- */
+
 export const emitEvent = (event, data) => {
   if (!socket || !socket.connected) {
     console.warn('Socket not connected');

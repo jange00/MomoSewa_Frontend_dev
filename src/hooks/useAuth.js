@@ -1,7 +1,5 @@
-/**
- * useAuth Hook
- * Provides authentication state and methods
- */
+//  useAuth Hook
+// Provides authentication state and methods
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,10 +14,6 @@ import * as authService from '../services/authService';
 import { initializeSocket, disconnectSocket, reconnectSocket } from '../socket/socketClient';
 import toast from 'react-hot-toast';
 
-/**
- * Custom hook for authentication
- * @returns {Object} Auth state and methods
- */
 export const useAuth = () => {
   const [user, setUserState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -62,7 +56,6 @@ export const useAuth = () => {
     
     // Cleanup on unmount
     return () => {
-      // Don't disconnect on unmount - let it stay connected
       // Only disconnect on logout
     };
   }, []);
@@ -111,9 +104,8 @@ export const useAuth = () => {
     }
   }, []);
 
-  /**
-   * Login user
-   */
+ // Login user
+
   const login = useCallback(async (credentials) => {
     try {
       setLoading(true);
@@ -141,9 +133,8 @@ export const useAuth = () => {
     }
   }, []);
 
-  /**
-   * Logout user
-   */
+ // Logout user
+
   const logout = useCallback(async () => {
     try {
       setLoading(true);
@@ -165,9 +156,7 @@ export const useAuth = () => {
     }
   }, [navigate]);
 
-  /**
-   * Refresh access token
-   */
+ // Refresh access token
   const refreshToken = useCallback(async () => {
     try {
       const refreshTokenValue = getRefreshToken();
@@ -194,18 +183,16 @@ export const useAuth = () => {
     }
   }, [navigate]);
 
-  /**
-   * Update user state (after profile updates, etc.)
-   */
+ // Update user state (after profile updates, etc.)
+
   const updateUser = useCallback((userData) => {
     setUserState(userData);
     const { setUser } = require('../utils/tokenManager');
     setUser(userData);
   }, []);
 
-  /**
-   * Forgot password
-   */
+// Forgot password
+
   const forgotPassword = useCallback(async (data) => {
     try {
       setLoading(true);
@@ -220,9 +207,7 @@ export const useAuth = () => {
     }
   }, []);
 
-  /**
-   * Reset password
-   */
+  // Reset password
   const resetPassword = useCallback(async (data) => {
     try {
       setLoading(true);
@@ -237,9 +222,8 @@ export const useAuth = () => {
     }
   }, []);
 
-  /**
-   * Verify email
-   */
+ // Verify email
+
   const verifyEmail = useCallback(async (data) => {
     try {
       setLoading(true);
@@ -257,9 +241,8 @@ export const useAuth = () => {
     }
   }, [updateUser]);
 
-  /**
-   * Verify phone
-   */
+  // Verify phone
+  
   const verifyPhone = useCallback(async (data) => {
     try {
       setLoading(true);

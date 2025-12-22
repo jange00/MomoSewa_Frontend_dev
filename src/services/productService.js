@@ -1,8 +1,6 @@
-/**
- * Product Service Example
- * This is an example of how to create additional API services
- * Follow this pattern for other services (orders, cart, etc.)
- */
+// Product Service Example
+// This is an example of how to create additional API services
+// Follow this pattern for other services (orders, cart, etc.)
 
 import apiClient, { handleApiResponse, handleApiError } from '../api/client';
 import { API_ENDPOINTS } from '../api/config';

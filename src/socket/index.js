@@ -1,7 +1,5 @@
-/**
- * Socket Module Exports
- * Centralized exports for Socket.IO client
- */
+// Socket Module Exports
+// Centralized exports for Socket.IO client
 
 export {
   initializeSocket,

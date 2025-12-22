@@ -1,19 +1,10 @@
-/**
- * useApi Hook
- * Provides a convenient way to make API calls with React Query
- */
+// useApi Hook
+// Provides a convenient way to make API calls with React Query
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient, { handleApiResponse, handleApiError } from '../api/client';
 import toast from 'react-hot-toast';
 
-/**
- * Generic hook for GET requests
- * @param {string} key - Query key
- * @param {string} endpoint - API endpoint
- * @param {Object} options - React Query options
- * @returns {Object} Query result
- */
 export const useGet = (key, endpoint, options = {}) => {
   // Extract params from options
   const { params, ...queryOptions } = options;
@@ -41,13 +32,6 @@ export const useGet = (key, endpoint, options = {}) => {
   });
 };
 
-/**
- * Generic hook for POST requests
- * @param {string} key - Query key (for cache invalidation)
- * @param {string} endpoint - API endpoint
- * @param {Object} options - Mutation options
- * @returns {Object} Mutation result
- */
 export const usePost = (key, endpoint, options = {}) => {
   const queryClient = useQueryClient();
 
@@ -84,13 +68,6 @@ export const usePost = (key, endpoint, options = {}) => {
   });
 };
 
-/**
- * Generic hook for PUT requests
- * @param {string} key - Query key (for cache invalidation)
- * @param {string} endpoint - API endpoint
- * @param {Object} options - Mutation options
- * @returns {Object} Mutation result
- */
 export const usePut = (key, endpoint, options = {}) => {
   const queryClient = useQueryClient();
 
@@ -127,13 +104,6 @@ export const usePut = (key, endpoint, options = {}) => {
   });
 };
 
-/**
- * Generic hook for PATCH requests
- * @param {string} key - Query key (for cache invalidation)
- * @param {string} endpoint - API endpoint
- * @param {Object} options - Mutation options
- * @returns {Object} Mutation result
- */
 export const usePatch = (key, endpoint, options = {}) => {
   const queryClient = useQueryClient();
 
@@ -214,10 +184,9 @@ export const useDelete = (key, endpoint, options = {}) => {
   });
 };
 
-/**
- * Custom hook for making API calls without React Query
- * Useful for one-off calls or when you need more control
- */
+// Custom hook for making API calls without React Query
+// Useful for one-off calls or when you need more control
+
 export const useApiCall = () => {
   const makeRequest = async (method, endpoint, data = null, config = {}) => {
     try {

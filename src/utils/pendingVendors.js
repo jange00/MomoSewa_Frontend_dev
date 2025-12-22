@@ -1,14 +1,10 @@
-/**
- * Pending Vendors Utility
- * Manages vendor applications that are waiting for admin approval
- */
+// Pending Vendors Utility
+// Manages vendor applications that are waiting for admin approval
 
 const PENDING_VENDORS_KEY = "pendingVendors";
 const APPROVED_VENDORS_KEY = "approvedVendors";
 
-/**
- * Get all pending vendors
- */
+// Get all pending vendors
 export const getPendingVendors = () => {
   try {
     const stored = localStorage.getItem(PENDING_VENDORS_KEY);
@@ -19,9 +15,8 @@ export const getPendingVendors = () => {
   }
 };
 
-/**
- * Add a new pending vendor application
- */
+
+// Add a new pending vendor application
 export const addPendingVendor = (vendorData) => {
   try {
     const pendingVendors = getPendingVendors();
@@ -51,9 +46,7 @@ export const addPendingVendor = (vendorData) => {
   }
 };
 
-/**
- * Approve a pending vendor
- */
+// Approve a pending vendor
 export const approveVendor = (vendorId) => {
   try {
     const pendingVendors = getPendingVendors();
@@ -95,9 +88,7 @@ export const approveVendor = (vendorId) => {
   }
 };
 
-/**
- * Reject a pending vendor
- */
+// Reject a pending vendor
 export const rejectVendor = (vendorId) => {
   try {
     const pendingVendors = getPendingVendors();
@@ -123,10 +114,7 @@ export const rejectVendor = (vendorId) => {
     throw error;
   }
 };
-
-/**
- * Get all approved vendors
- */
+// Get all approved vendors
 export const getApprovedVendors = () => {
   try {
     const stored = localStorage.getItem(APPROVED_VENDORS_KEY);
@@ -137,9 +125,7 @@ export const getApprovedVendors = () => {
   }
 };
 
-/**
- * Check if a vendor is approved by email
- */
+// Check if a vendor is approved by email
 export const isVendorApproved = (email) => {
   try {
     const approvedVendors = getApprovedVendors();
@@ -151,9 +137,7 @@ export const isVendorApproved = (email) => {
   }
 };
 
-/**
- * Get vendor approval status by email
- */
+// Get vendor approval status by email
 export const getVendorStatus = (email) => {
   try {
     // Check approved vendors first
@@ -177,9 +161,7 @@ export const getVendorStatus = (email) => {
   }
 };
 
-/**
- * Get vendor by email (from either pending or approved)
- */
+// Get vendor by email (from either pending or approved)
 export const getVendorByEmail = (email) => {
   try {
     // Check approved vendors first

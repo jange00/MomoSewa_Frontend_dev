@@ -1,15 +1,9 @@
-/**
- * Address Service
- * Handles all address-related API calls
- */
+// Address Service
+// Handles all address-related API calls
 
 import apiClient, { handleApiResponse, handleApiError } from '../api/client';
 import { API_ENDPOINTS } from '../api/config';
 
-/**
- * Get all user addresses
- * @returns {Promise<Object>} Addresses response
- */
 export const getAddresses = async () => {
   try {
     const response = await apiClient.get(API_ENDPOINTS.ADDRESSES);
@@ -19,11 +13,6 @@ export const getAddresses = async () => {
   }
 };
 
-/**
- * Get address by ID
- * @param {string} addressId - Address ID
- * @returns {Promise<Object>} Address response
- */
 export const getAddressById = async (addressId) => {
   try {
     const response = await apiClient.get(`${API_ENDPOINTS.ADDRESSES}/${addressId}`);
@@ -33,11 +22,6 @@ export const getAddressById = async (addressId) => {
   }
 };
 
-/**
- * Create a new address
- * @param {Object} addressData - Address data
- * @returns {Promise<Object>} Created address response
- */
 export const createAddress = async (addressData) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.ADDRESSES, addressData);
@@ -47,12 +31,6 @@ export const createAddress = async (addressData) => {
   }
 };
 
-/**
- * Update an address
- * @param {string} addressId - Address ID
- * @param {Object} addressData - Updated address data
- * @returns {Promise<Object>} Updated address response
- */
 export const updateAddress = async (addressId, addressData) => {
   try {
     const response = await apiClient.patch(
@@ -65,11 +43,6 @@ export const updateAddress = async (addressId, addressData) => {
   }
 };
 
-/**
- * Delete an address
- * @param {string} addressId - Address ID
- * @returns {Promise<Object>} Delete response
- */
 export const deleteAddress = async (addressId) => {
   try {
     const response = await apiClient.delete(`${API_ENDPOINTS.ADDRESSES}/${addressId}`);
@@ -79,11 +52,6 @@ export const deleteAddress = async (addressId) => {
   }
 };
 
-/**
- * Set default address
- * @param {string} addressId - Address ID
- * @returns {Promise<Object>} Response
- */
 export const setDefaultAddress = async (addressId) => {
   try {
     // According to backend: PUT /addresses/:id/default

@@ -1,7 +1,5 @@
-/**
- * Services Module Exports
- * Centralized exports for all services
- */
+// Services Module Exports
+// Centralized exports for all services
 
 export * as authService from './authService';
 export * as productService from './productService';
