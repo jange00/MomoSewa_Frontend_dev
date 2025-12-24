@@ -156,6 +156,54 @@ export const handleApiError = (error) => {
       errorMessage = data.message || 'Invalid email or password. Please check your credentials.';
     } else if (status === 400) {
       errorMessage = data.message || 'Invalid request. Please check your input.';
+    } else if (status === 422) {
+      // 422 Unprocessable Entity - Validation errors
+      console.error('422 Validation Error Details:', data);
+      console.error('422 Validation Error Details (full):', JSON.stringify(data, null, 2));
+      
+      // Try to extract validation errors from different possible formats
+      if (data.details) {
+        if (Array.isArray(data.details)) {
+          // Array of error objects/messages
+          const errorMessages = data.details.map((err, index) => {
+            if (typeof err === 'string') {
+              return err;
+            } else if (err.path || err.field) {
+              // Format: {path: 'fieldName', message: 'error message'}
+              const field = err.path || err.field || 'unknown';
+              const message = err.message || err.msg || JSON.stringify(err);
+              return `${field}: ${message}`;
+            } else if (err.msg || err.message) {
+              return err.msg || err.message;
+            } else {
+              return JSON.stringify(err);
+            }
+          });
+          errorMessage = data.message || `Validation failed: ${errorMessages.join('; ')}`;
+        } else if (typeof data.details === 'object' && !Array.isArray(data.details)) {
+          // Object with field-specific errors
+          const fieldErrors = Object.entries(data.details)
+            .map(([field, message]) => `${field}: ${Array.isArray(message) ? message.join(', ') : message}`)
+            .join('; ');
+          errorMessage = data.message || `Validation failed: ${fieldErrors}`;
+        } else {
+          errorMessage = data.message || `Validation failed: ${data.details}`;
+        }
+      } else if (data.errors) {
+        // Alternative error format
+        if (Array.isArray(data.errors)) {
+          errorMessage = data.message || `Validation failed: ${data.errors.join(', ')}`;
+        } else if (typeof data.errors === 'object') {
+          const fieldErrors = Object.entries(data.errors)
+            .map(([field, message]) => `${field}: ${Array.isArray(message) ? message.join(', ') : message}`)
+            .join('; ');
+          errorMessage = data.message || `Validation failed: ${fieldErrors}`;
+        } else {
+          errorMessage = data.message || `Validation failed: ${data.errors}`;
+        }
+      } else {
+        errorMessage = data.message || 'Validation failed. Please check your input.';
+      }
     } else if (status === 404) {
       errorMessage = data.message || 'Endpoint not found.';
     } else if (status === 500) {
@@ -164,7 +212,7 @@ export const handleApiError = (error) => {
     
     return {
       message: errorMessage,
-      details: data.details || null,
+      details: data.details || data.errors || null,
       status,
       success: false,
       response: error.response,

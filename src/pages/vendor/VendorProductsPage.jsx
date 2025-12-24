@@ -6,10 +6,12 @@ import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
 import Badge from "../../ui/badges/Badge";
 import Input from "../../ui/inputs/Input";
+import Toggle from "../../ui/inputs/Toggle";
 import ConfirmDialog from "../../ui/modals/ConfirmDialog";
 import { useGet, usePost, useDelete } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
+import { PRODUCT_CATEGORIES, DEFAULT_CATEGORY, isValidCategory } from "../../common/productCategories";
 
 const VendorProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -60,10 +62,12 @@ const VendorProductsPage = () => {
     name: "",
     description: "",
     price: "",
-    category: "Momo",
-    stock: "",
-    image: "🥟",
+    originalPrice: "",
+    category: DEFAULT_CATEGORY,
+    stock: "-1", // -1 means unlimited (backend default)
+    emoji: "🥟", // Backend default emoji
     imageUrl: "",
+    isAvailable: true, // Backend default is true
   });
   const [newProductImageFile, setNewProductImageFile] = useState(null);
   const [newProductImagePreview, setNewProductImagePreview] = useState(null);
@@ -229,30 +233,103 @@ const VendorProductsPage = () => {
   };
 
   const handleAddProduct = async () => {
-    if (!newProduct.name || !newProduct.price || !newProduct.stock) {
-      toast.error("Please fill in all required fields");
+    if (!newProduct.name || !newProduct.price) {
+      toast.error("Please fill in all required fields (Name and Price)");
       return;
     }
 
+    // Validate price
+    const price = parseFloat(newProduct.price);
+    if (isNaN(price) || price <= 0) {
+      toast.error("Please enter a valid price greater than 0");
+      return;
+    }
+
+    // Validate originalPrice if provided
+    let originalPrice = null;
+    if (newProduct.originalPrice && newProduct.originalPrice.trim()) {
+      originalPrice = parseFloat(newProduct.originalPrice);
+      if (isNaN(originalPrice) || originalPrice <= 0) {
+        toast.error("Original price must be a valid number greater than 0");
+        return;
+      }
+      if (originalPrice <= price) {
+        toast.error("Original price must be greater than the current price");
+        return;
+      }
+    }
+
+    // Validate stock - allow -1 for unlimited, or 0+ for limited stock
+    let stock = -1; // Default to unlimited
+    if (newProduct.stock === "custom" && newProduct.customStock) {
+      stock = parseInt(newProduct.customStock);
+      if (isNaN(stock) || stock < -1) {
+        toast.error("Stock must be -1 (unlimited) or 0 or greater");
+        return;
+      }
+    } else if (newProduct.stock && newProduct.stock !== "-1" && newProduct.stock !== "custom") {
+      stock = parseInt(newProduct.stock);
+      if (isNaN(stock) || stock < -1) {
+        toast.error("Stock must be -1 (unlimited) or 0 or greater");
+        return;
+      }
+    }
+
+    // Validate category
+    const category = newProduct.category.trim() || DEFAULT_CATEGORY;
+    if (!isValidCategory(category)) {
+      toast.error(`Invalid category. Please select a valid category from the list.`);
+      return;
+    }
+
+    // Build product data according to backend schema
     const productData = {
-      name: newProduct.name,
-      description: newProduct.description || "Delicious momo",
-      price: parseFloat(newProduct.price),
-      category: newProduct.category,
-      stock: parseInt(newProduct.stock),
-      isAvailable: true,
+      name: newProduct.name.trim(),
+      description: newProduct.description ? newProduct.description.trim() : undefined,
+      price: price,
+      category: category,
+      stock: stock,
+      isAvailable: newProduct.isAvailable !== undefined ? newProduct.isAvailable : true, // Backend default is true
     };
 
-    // If image file exists, upload it first
+    // Add originalPrice if provided
+    if (originalPrice !== null) {
+      productData.originalPrice = originalPrice;
+    }
+
+    // Add emoji if provided (backend default is '🥟')
+    if (newProduct.emoji && newProduct.emoji.trim()) {
+      productData.emoji = newProduct.emoji.trim();
+    }
+
+    // Handle image - backend expects 'image' field (single image)
+    // If image file exists, upload it first (TODO: implement file upload)
     if (newProductImageFile) {
-      // TODO: Upload image and get URL, then add to productData
-      // For now, include imageUrl if provided
+      // TODO: Upload image file and get URL, then add to productData.image
+      // For now, use imageUrl if provided
       if (newProduct.imageUrl) {
-        productData.imageUrl = newProduct.imageUrl;
+        productData.image = newProduct.imageUrl.trim();
       }
     } else if (newProduct.imageUrl) {
-      productData.imageUrl = newProduct.imageUrl;
+      // Use image URL directly
+      productData.image = newProduct.imageUrl.trim();
     }
+    // Note: Backend has default emoji '🥟' if no image is provided
+    
+    // Handle images array - backend also supports images: [String]
+    // If multiple images are provided, add them to images array
+    // For now, if image is provided, we can add it to both image and images[0]
+    if (productData.image) {
+      productData.images = [productData.image];
+    }
+    
+    // Handle variants - backend supports variants: [{ name: String, price: Number }]
+    // Variants are optional, so we only add if they exist
+    // TODO: Add UI for managing variants
+    // For now, variants array will be empty (backend default)
+
+    // Log the data being sent for debugging
+    console.log("Sending product data:", productData);
 
     try {
       await createProductMutation.mutateAsync(productData, {
@@ -262,10 +339,12 @@ const VendorProductsPage = () => {
             name: "",
             description: "",
             price: "",
-            category: "Momo",
-            stock: "",
-            image: "🥟",
+            originalPrice: "",
+            category: DEFAULT_CATEGORY,
+            stock: "-1",
+            emoji: "🥟",
             imageUrl: "",
+            isAvailable: true,
           });
           setNewProductImageFile(null);
           setNewProductImagePreview(null);
@@ -274,6 +353,58 @@ const VendorProductsPage = () => {
       });
     } catch (error) {
       console.error("Failed to create product:", error);
+      
+      // Log detailed error information
+      if (error.response) {
+        console.error("Error Status:", error.response.status);
+        console.error("Error Data:", error.response.data);
+        
+        // Show validation errors if available
+        if (error.response.data?.details) {
+          console.error("Validation Errors:", error.response.data.details);
+          console.error("Validation Errors (full):", JSON.stringify(error.response.data.details, null, 2));
+          
+          // Handle array of validation errors
+          if (Array.isArray(error.response.data.details)) {
+            const errorMessages = error.response.data.details.map((err, index) => {
+              // Handle different error formats
+              if (typeof err === 'string') {
+                return err;
+              } else if (err.path || err.field) {
+                // Format: {path: 'fieldName', message: 'error message'}
+                const field = err.path || err.field || 'unknown';
+                const message = err.message || JSON.stringify(err);
+                return `${field}: ${message}`;
+              } else if (err.msg || err.message) {
+                // Format: {msg: 'error message'} or {message: 'error message'}
+                return err.msg || err.message;
+              } else {
+                // Fallback: stringify the whole object
+                return JSON.stringify(err);
+              }
+            }).join('; ');
+            toast.error(`Validation errors: ${errorMessages}`);
+          } else if (typeof error.response.data.details === 'object') {
+            // Object with field-specific errors
+            const errorMessages = Object.entries(error.response.data.details)
+              .map(([field, message]) => `${field}: ${Array.isArray(message) ? message.join(', ') : message}`)
+              .join('; ');
+            toast.error(`Validation errors: ${errorMessages}`);
+          } else {
+            toast.error(`Validation error: ${error.response.data.details}`);
+          }
+        } else if (error.response.data?.errors) {
+          console.error("Validation Errors:", error.response.data.errors);
+          const errorMessages = Array.isArray(error.response.data.errors)
+            ? error.response.data.errors.join(', ')
+            : JSON.stringify(error.response.data.errors);
+          toast.error(`Validation errors: ${errorMessages}`);
+        } else if (error.response.data?.message) {
+          toast.error(error.response.data.message);
+        }
+      } else if (error.message) {
+        toast.error(error.message);
+      }
     }
   };
 
@@ -283,13 +414,15 @@ const VendorProductsPage = () => {
     
     setEditingId(id);
     setEditingProduct({
-      name: product.name,
+      name: product.name || "",
       description: product.description || "",
-      price: product.price.toString(),
-      category: product.category || product.categoryName || "Momo",
-      stock: (product.stock || product.quantity || 0).toString(),
-      image: product.image || "🥟",
-      imageUrl: product.imageUrl || product.image || "",
+      price: product.price ? product.price.toString() : "",
+      originalPrice: product.originalPrice ? product.originalPrice.toString() : "",
+      category: product.category || product.categoryName || DEFAULT_CATEGORY,
+      stock: product.stock !== undefined && product.stock !== null ? product.stock.toString() : "-1",
+      emoji: product.emoji || "🥟",
+      imageUrl: product.image || product.imageUrl || "",
+      isAvailable: product.isAvailable !== undefined ? product.isAvailable : true,
     });
     
     // Set image preview if product has an image URL
@@ -311,28 +444,95 @@ const VendorProductsPage = () => {
   };
 
   const handleSaveEdit = async (id) => {
-    if (!editingProduct.name || !editingProduct.price || !editingProduct.stock) {
-      toast.error("Please fill in all required fields");
+    if (!editingProduct.name || !editingProduct.price) {
+      toast.error("Please fill in all required fields (Name and Price)");
       return;
     }
 
+    // Validate price
+    const price = parseFloat(editingProduct.price);
+    if (isNaN(price) || price <= 0) {
+      toast.error("Please enter a valid price greater than 0");
+      return;
+    }
+
+    // Validate originalPrice if provided
+    let originalPrice = null;
+    if (editingProduct.originalPrice && editingProduct.originalPrice.trim()) {
+      originalPrice = parseFloat(editingProduct.originalPrice);
+      if (isNaN(originalPrice) || originalPrice <= 0) {
+        toast.error("Original price must be a valid number greater than 0");
+        return;
+      }
+      if (originalPrice <= price) {
+        toast.error("Original price must be greater than the current price");
+        return;
+      }
+    }
+
+    // Validate stock - allow -1 for unlimited, or 0+ for limited stock
+    let stock = -1; // Default to unlimited
+    if (editingProduct.stock === "custom" && editingProduct.customStock) {
+      stock = parseInt(editingProduct.customStock);
+      if (isNaN(stock) || stock < -1) {
+        toast.error("Stock must be -1 (unlimited) or 0 or greater");
+        return;
+      }
+    } else if (editingProduct.stock && editingProduct.stock !== "-1" && editingProduct.stock !== "custom") {
+      stock = parseInt(editingProduct.stock);
+      if (isNaN(stock) || stock < -1) {
+        toast.error("Stock must be -1 (unlimited) or 0 or greater");
+        return;
+      }
+    }
+
+    // Validate category
+    const category = editingProduct.category.trim() || DEFAULT_CATEGORY;
+    if (!isValidCategory(category)) {
+      toast.error(`Invalid category. Please select a valid category from the list.`);
+      return;
+    }
+
+    // Build product data according to backend schema
     const productData = {
-      name: editingProduct.name,
-      description: editingProduct.description || "",
-      price: parseFloat(editingProduct.price),
-      category: editingProduct.category,
-      stock: parseInt(editingProduct.stock),
+      name: editingProduct.name.trim(),
+      description: editingProduct.description ? editingProduct.description.trim() : undefined,
+      price: price,
+      category: category,
+      stock: stock,
+      isAvailable: editingProduct.isAvailable !== undefined ? editingProduct.isAvailable : true, // Backend default is true
     };
 
-    // If image file exists, upload it first
+    // Add originalPrice if provided
+    if (originalPrice !== null) {
+      productData.originalPrice = originalPrice;
+    }
+
+    // Add emoji if provided (backend default is '🥟')
+    if (editingProduct.emoji && editingProduct.emoji.trim()) {
+      productData.emoji = editingProduct.emoji.trim();
+    }
+
+    // Handle image - backend expects 'image' field (single String, default: null)
+    // Backend also has 'images' array (Array of Strings, default: [])
+    let imageUrl = null;
     if (editingProductImageFile) {
-      // TODO: Upload image and get URL, then add to productData
+      // TODO: Upload image file and get URL, then add to productData.image
       if (editingProduct.imageUrl) {
-        productData.imageUrl = editingProduct.imageUrl;
+        imageUrl = editingProduct.imageUrl.trim();
       }
     } else if (editingProduct.imageUrl) {
-      productData.imageUrl = editingProduct.imageUrl;
+      // Use image URL directly
+      imageUrl = editingProduct.imageUrl.trim();
     }
+    
+    // Add image to productData if provided
+    if (imageUrl) {
+      productData.image = imageUrl;
+      // Also add to images array (backend supports both)
+      productData.images = [imageUrl];
+    }
+    // Note: Backend has default emoji '🥟' if no image is provided
 
     try {
       // Use direct API call with ID in endpoint
@@ -369,10 +569,12 @@ const VendorProductsPage = () => {
       name: "",
       description: "",
       price: "",
-      category: "Momo",
-      stock: "",
-      image: "🥟",
+      originalPrice: "",
+      category: DEFAULT_CATEGORY,
+      stock: "-1",
+      emoji: "🥟",
       imageUrl: "",
+      isAvailable: true,
     });
     setNewProductImageFile(null);
     setNewProductImagePreview(null);
@@ -454,36 +656,105 @@ const VendorProductsPage = () => {
                 type="text"
                 value={newProduct.name}
                 onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                placeholder="e.g., Steam Momo (10 pcs)"
+                placeholder="e.g., Steamed Momo (10 pcs)"
               />
               <Input
                 label="Price (Rs.) *"
                 type="number"
+                step="0.01"
+                min="0"
                 value={newProduct.price}
                 onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                placeholder="250"
+                placeholder="250.00"
+              />
+              <Input
+                label="Original Price (Rs.)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={newProduct.originalPrice}
+                onChange={(e) => setNewProduct({ ...newProduct, originalPrice: e.target.value })}
+                placeholder="300.00 (optional, for discounts)"
               />
               <Input
                 label="Description"
                 type="text"
                 value={newProduct.description}
                 onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                placeholder="Product description"
+                placeholder="Product description (optional)"
               />
-              <Input
-                label="Stock Quantity *"
-                type="number"
-                value={newProduct.stock}
-                onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
-                placeholder="50"
-              />
-              <Input
-                label="Category"
-                type="text"
-                value={newProduct.category}
-                onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                placeholder="Momo"
-              />
+              <div>
+                <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                  Category *
+                </label>
+                <select
+                  value={newProduct.category}
+                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                  className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium"
+                >
+                  {PRODUCT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                  Stock Quantity
+                </label>
+                <select
+                  value={newProduct.stock}
+                  onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
+                  className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium"
+                >
+                  <option value="-1">Unlimited (-1)</option>
+                  <option value="0">0 (Out of Stock)</option>
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="custom">Custom Amount</option>
+                </select>
+                {newProduct.stock === "custom" && (
+                  <Input
+                    label="Custom Stock Amount"
+                    type="number"
+                    min="-1"
+                    value={newProduct.customStock || ""}
+                    onChange={(e) => setNewProduct({ ...newProduct, customStock: e.target.value })}
+                    placeholder="Enter stock quantity or -1 for unlimited"
+                    className="mt-2"
+                  />
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                  Emoji Icon
+                </label>
+                <Input
+                  type="text"
+                  value={newProduct.emoji}
+                  onChange={(e) => setNewProduct({ ...newProduct, emoji: e.target.value })}
+                  placeholder="🥟 (default)"
+                  maxLength={2}
+                />
+                <p className="text-xs text-charcoal-grey/60 mt-1">
+                  Emoji to display when no image is available (default: 🥟)
+                </p>
+              </div>
+              <div className="flex items-center justify-between pt-6 border-t border-charcoal-grey/10">
+                <div className="flex flex-col">
+                  <Toggle
+                    label="Product is available for purchase"
+                    checked={newProduct.isAvailable}
+                    onChange={(e) => setNewProduct({ ...newProduct, isAvailable: e.target.checked })}
+                  />
+                  <p className="text-xs text-charcoal-grey/60 mt-1 ml-14">
+                    {newProduct.isAvailable ? "Visible to customers" : "Hidden from customers"}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Image Upload Section */}
@@ -847,31 +1118,100 @@ const VendorProductsPage = () => {
                     <Input
                       label="Price (Rs.) *"
                       type="number"
+                      step="0.01"
+                      min="0"
                       value={editingProduct?.price || ""}
                       onChange={(e) => handleEditChange("price", e.target.value)}
-                      placeholder="250"
+                      placeholder="250.00"
+                    />
+                    <Input
+                      label="Original Price (Rs.)"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editingProduct?.originalPrice || ""}
+                      onChange={(e) => handleEditChange("originalPrice", e.target.value)}
+                      placeholder="300.00 (optional, for discounts)"
                     />
                     <Input
                       label="Description"
                       type="text"
                       value={editingProduct?.description || ""}
                       onChange={(e) => handleEditChange("description", e.target.value)}
-                      placeholder="Description"
+                      placeholder="Description (optional)"
                     />
-                    <Input
-                      label="Stock *"
-                      type="number"
-                      value={editingProduct?.stock || ""}
-                      onChange={(e) => handleEditChange("stock", e.target.value)}
-                      placeholder="50"
-                    />
-                    <Input
-                      label="Category"
-                      type="text"
-                      value={editingProduct?.category || ""}
-                      onChange={(e) => handleEditChange("category", e.target.value)}
-                      placeholder="Momo"
-                    />
+                    <div>
+                      <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                        Category *
+                      </label>
+                      <select
+                        value={editingProduct?.category || DEFAULT_CATEGORY}
+                        onChange={(e) => handleEditChange("category", e.target.value)}
+                        className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium"
+                      >
+                        {PRODUCT_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                        Stock Quantity
+                      </label>
+                      <select
+                        value={editingProduct?.stock || "-1"}
+                        onChange={(e) => handleEditChange("stock", e.target.value)}
+                        className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium"
+                      >
+                        <option value="-1">Unlimited (-1)</option>
+                        <option value="0">0 (Out of Stock)</option>
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="custom">Custom Amount</option>
+                      </select>
+                      {editingProduct?.stock === "custom" && (
+                        <Input
+                          label="Custom Stock Amount"
+                          type="number"
+                          min="-1"
+                          value={editingProduct?.customStock || ""}
+                          onChange={(e) => handleEditChange("stock", e.target.value)}
+                          placeholder="Enter stock quantity or -1 for unlimited"
+                          className="mt-2"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                        Emoji Icon
+                      </label>
+                      <Input
+                        type="text"
+                        value={editingProduct?.emoji || "🥟"}
+                        onChange={(e) => handleEditChange("emoji", e.target.value)}
+                        placeholder="🥟 (default)"
+                        maxLength={2}
+                      />
+                      <p className="text-xs text-charcoal-grey/60 mt-1">
+                        Emoji to display when no image is available
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between pt-6 border-t border-charcoal-grey/10">
+                      <div className="flex flex-col">
+                        <Toggle
+                          label="Product is available for purchase"
+                          checked={editingProduct?.isAvailable !== undefined ? editingProduct.isAvailable : true}
+                          onChange={(e) => handleEditChange("isAvailable", e.target.checked)}
+                        />
+                        <p className="text-xs text-charcoal-grey/60 mt-1 ml-14">
+                          {editingProduct?.isAvailable !== false ? "Visible to customers" : "Hidden from customers"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Image Upload Section for Edit */}

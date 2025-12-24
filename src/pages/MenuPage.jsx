@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { FiX, FiSliders } from "react-icons/fi";
 import ProductCard from "../features/menu/components/ProductCard";
@@ -11,8 +12,11 @@ import EmptyState from "../ui/empty/EmptyState";
 import Button from "../ui/buttons/Button";
 import { useGet, usePost } from "../hooks/useApi";
 import { API_ENDPOINTS } from "../api/config";
+import { useAuth } from "../hooks/useAuth";
 
 const MenuPage = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -82,6 +86,19 @@ const MenuPage = () => {
   };
 
   const handleAddToCart = async (product) => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      toast.error("Please login to add items to cart");
+      navigate("/login");
+      return;
+    }
+
+    // Check if user is a customer (vendors/admins shouldn't add to cart)
+    if (user?.role && user.role !== "customer") {
+      toast.error("Only customers can add items to cart");
+      return;
+    }
+
     try {
       await addToCartMutation.mutateAsync({
         productId: product._id || product.id,
@@ -89,6 +106,10 @@ const MenuPage = () => {
       });
     } catch (error) {
       console.error("Failed to add to cart:", error);
+      // Error toast is already shown by usePost hook
+      if (error.status === 403) {
+        toast.error("Access denied. Please login as a customer to add items to cart.");
+      }
     }
   };
 
