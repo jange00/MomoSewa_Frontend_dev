@@ -81,7 +81,7 @@ const CustomerProfilePage = () => {
   const updateProfileMutation = usePatch(
     'customer-profile',
     `${API_ENDPOINTS.USERS}/profile`,
-    { showSuccessToast: true, showErrorToast: false } // We'll handle errors manually
+    { showSuccessToast: false, showErrorToast: false } // We'll handle toasts manually for better UX
   );
 
   const handleChange = (e) => {
@@ -127,6 +127,7 @@ const CustomerProfilePage = () => {
       console.log("Update result:", result);
 
       if (result.success) {
+        toast.success(result.message || "Profile updated successfully");
         // Update user state in auth context
         if (result.data?.user) {
           updateUser(result.data.user);
@@ -305,18 +306,77 @@ const CustomerProfilePage = () => {
 
   const handleSavePassword = async (passwordData) => {
     try {
+      console.log("Attempting to change password with data:", {
+        currentPassword: passwordData.current ? "***" : "missing",
+        newPassword: passwordData.new ? "***" : "missing",
+        confirmPassword: passwordData.confirm ? "***" : "missing"
+      });
+
       const result = await userService.changePassword({
         currentPassword: passwordData.current,
         newPassword: passwordData.new,
       });
 
-      if (result.success) {
+      console.log("Password change result:", result);
+
+      if (result && result.success) {
         toast.success(result.message || "Password changed successfully");
         setShowPasswordDialog(false);
+      } else {
+        // If result exists but success is false
+        const errorMsg = result?.message || "Failed to change password. Please try again.";
+        toast.error(errorMsg);
       }
     } catch (error) {
-      console.error("Failed to change password:", error);
-      toast.error(error.message || "Failed to change password. Please check your current password.");
+      console.error("Failed to change password - Full error:", error);
+      console.error("Error type:", typeof error);
+      console.error("Error keys:", Object.keys(error || {}));
+      console.error("Error status:", error?.status);
+      console.error("Error response status:", error?.response?.status);
+      console.error("Error message:", error?.message);
+      console.error("Error response data:", error?.response?.data);
+      console.error("Error details:", error?.details);
+
+      // handleApiError returns an object with { message, details, status, success, response }
+      // When thrown, we can access these properties directly
+      const status = error?.status || error?.response?.status;
+      const errorMessage = error?.message || error?.response?.data?.message || "Failed to change password";
+      const errorDetails = error?.details || error?.response?.data?.details;
+
+      if (status === 400 || status === 422) {
+        // Validation error
+        if (errorDetails) {
+          if (Array.isArray(errorDetails)) {
+            const detailMessages = errorDetails.map(d => {
+              if (typeof d === 'string') return d;
+              return d.message || d.field || JSON.stringify(d);
+            }).join(", ");
+            toast.error(`Validation error: ${detailMessages}`);
+          } else if (typeof errorDetails === 'string') {
+            toast.error(`Validation error: ${errorDetails}`);
+          } else {
+            toast.error(`Validation error: ${errorMessage}`);
+          }
+        } else {
+          toast.error(`Validation error: ${errorMessage}`);
+        }
+      } else if (status === 401) {
+        toast.error("Current password is incorrect. Please try again.");
+      } else if (status === 403) {
+        toast.error("You don't have permission to change your password. Please contact support.");
+      } else if (status === 404) {
+        console.error("Backend endpoint missing. Expected one of:");
+        console.error("  - POST /api/v1/users/profile/change-password");
+        console.error("  - POST /api/v1/users/change-password");
+        toast.error("Password change feature is not available yet. Please contact support or check backend implementation.");
+      } else if (status === 500) {
+        toast.error("Server error. Please try again later or contact support.");
+      } else if (status) {
+        toast.error(`${errorMessage} (Status: ${status})`);
+      } else {
+        // Network error or other issue
+        toast.error(errorMessage || "Failed to change password. Please check your connection and try again.");
+      }
     }
   };
 

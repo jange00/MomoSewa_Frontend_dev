@@ -75,11 +75,35 @@ export const deleteProfilePicture = async () => {
 
 export const changePassword = async (passwordData) => {
   try {
-    const response = await apiClient.post(
-      `${API_ENDPOINTS.USERS}/change-password`,
-      passwordData
-    );
-    return handleApiResponse(response);
+    // Try /users/profile/change-password first (most common pattern for profile operations)
+    // If that fails with 404, try /users/change-password
+    let response;
+    try {
+      response = await apiClient.post(
+        `${API_ENDPOINTS.USERS}/profile/change-password`,
+        passwordData
+      );
+      return handleApiResponse(response);
+    } catch (firstError) {
+      const firstStatus = firstError?.response?.status || firstError?.status;
+      // If it's 404, try the alternative endpoint
+      if (firstStatus === 404) {
+        console.log("Profile change-password endpoint not found (404), trying /users/change-password");
+        try {
+          response = await apiClient.post(
+            `${API_ENDPOINTS.USERS}/change-password`,
+            passwordData
+          );
+          return handleApiResponse(response);
+        } catch (secondError) {
+          // If both return 404, the endpoint doesn't exist on backend
+          throw secondError;
+        }
+      } else {
+        // If it's not 404, it's a different error (validation, auth, etc.) - throw it
+        throw firstError;
+      }
+    }
   } catch (error) {
     throw handleApiError(error);
   }
