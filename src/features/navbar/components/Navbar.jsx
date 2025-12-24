@@ -1,6 +1,6 @@
 import { FiSearch, FiShoppingCart, FiMenu, FiX } from "react-icons/fi";
 import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Logo from "../../../common/Logo";
 import UserMenuDropdown from "./UserMenuDropdown";
 import { USER_ROLES } from "../../../common/roleConstants";
@@ -20,7 +20,14 @@ const Navbar = () => {
 
   // Check if user is logged in as customer (case-insensitive)
   const userRole = normalizeRole(user?.role);
-  const isCustomerLoggedIn = isAuthenticated && userRole === USER_ROLES.CUSTOMER;
+  // const isCustomerLoggedIn = isAuthenticated && userRole === USER_ROLES.CUSTOMER;
+  const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
+
+  useEffect(() => {
+  setIsCustomerLoggedIn(
+    isAuthenticated && userRole === USER_ROLES.CUSTOMER
+  );
+}, [isAuthenticated, userRole]);
 
   const navLinks = [
     { path: "/", label: "Home" },

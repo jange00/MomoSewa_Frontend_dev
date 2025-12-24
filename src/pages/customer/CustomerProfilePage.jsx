@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { FiUser, FiMail, FiPhone, FiLock, FiEdit, FiUpload, FiTrash2 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
@@ -28,7 +28,10 @@ const CustomerProfilePage = () => {
     }
   );
 
-  const apiProfile = profileData?.data || {};
+  // Memoize apiProfile to prevent infinite loops
+  const apiProfile = useMemo(() => {
+    return profileData?.data || {};
+  }, [profileData?.data]);
   
   const [formData, setFormData] = useState({
     name: user?.name || apiProfile.name || "",
@@ -38,18 +41,39 @@ const CustomerProfilePage = () => {
 
   // Update form data when API data loads or user changes
   useEffect(() => {
+    // Only update if values actually changed to prevent infinite loops
     if (apiProfile && Object.keys(apiProfile).length > 0) {
-      setFormData(prev => ({
-        name: apiProfile.name || prev.name,
-        email: apiProfile.email || prev.email,
-        phone: apiProfile.phone || prev.phone,
-      }));
+      setFormData(prev => {
+        const newName = apiProfile.name || prev.name;
+        const newEmail = apiProfile.email || prev.email;
+        const newPhone = apiProfile.phone || prev.phone;
+        
+        // Only update if values changed
+        if (newName !== prev.name || newEmail !== prev.email || newPhone !== prev.phone) {
+          return {
+            name: newName,
+            email: newEmail,
+            phone: newPhone,
+          };
+        }
+        return prev;
+      });
     } else if (user) {
-      setFormData(prev => ({
-        name: user.name || prev.name,
-        email: user.email || prev.email,
-        phone: user.phone || prev.phone,
-      }));
+      setFormData(prev => {
+        const newName = user.name || prev.name;
+        const newEmail = user.email || prev.email;
+        const newPhone = user.phone || prev.phone;
+        
+        // Only update if values changed
+        if (newName !== prev.name || newEmail !== prev.email || newPhone !== prev.phone) {
+          return {
+            name: newName,
+            email: newEmail,
+            phone: newPhone,
+          };
+        }
+        return prev;
+      });
     }
   }, [apiProfile, user]);
 
@@ -180,13 +204,29 @@ const CustomerProfilePage = () => {
       console.log("Calling uploadProfilePicture with file:", file);
       const result = await userService.uploadProfilePicture(file);
       
+      console.log("Upload result:", result);
+      console.log("Result data:", result.data);
+      console.log("User data:", result.data?.user);
+      console.log("Profile picture URL:", result.data?.user?.profilePicture || result.data?.profilePicture);
+      
       if (result.success) {
         toast.success("Profile picture updated successfully");
         // Update user state if new user data is returned
         if (result.data?.user) {
+          console.log("Updating user with new data:", result.data.user);
           updateUser(result.data.user);
+        } else if (result.data?.profilePicture) {
+          // If profilePicture is returned directly, update user state
+          console.log("Updating user with profilePicture URL:", result.data.profilePicture);
+          updateUser({
+            ...user,
+            profilePicture: result.data.profilePicture
+          });
         }
-        refetch(); // Refresh profile data
+        // Always refetch to get latest data
+        console.log("Refetching profile data...");
+        await refetch();
+        console.log("Refetch completed");
       }
     } catch (error) {
       console.error("Failed to upload profile picture - Full error:", error);
@@ -280,7 +320,21 @@ const CustomerProfilePage = () => {
     }
   };
 
-  const profilePicture = apiProfile.profilePicture || user?.profilePicture;
+  // Get profile picture from multiple possible locations
+  const profilePicture = apiProfile.profilePicture || 
+                        apiProfile.user?.profilePicture ||
+                        user?.profilePicture ||
+                        profileData?.data?.user?.profilePicture ||
+                        null;
+  
+  console.log("Profile picture sources:", {
+    apiProfile: apiProfile.profilePicture,
+    apiProfileUser: apiProfile.user?.profilePicture,
+    user: user?.profilePicture,
+    profileData: profileData?.data?.user?.profilePicture,
+    final: profilePicture
+  });
+  
   const displayName = formData.name || user?.name || "Customer";
 
   if (isLoading) {
@@ -367,6 +421,15 @@ const CustomerProfilePage = () => {
                   src={profilePicture}
                   alt={displayName}
                   className="w-24 h-24 rounded-full object-cover shadow-lg border-2 border-golden-amber/20"
+                  onError={(e) => {
+                    console.error("Failed to load profile picture:", profilePicture);
+                    console.error("Image error:", e);
+                    // Fallback to placeholder if image fails to load
+                    e.target.style.display = 'none';
+                  }}
+                  onLoad={() => {
+                    console.log("Profile picture loaded successfully:", profilePicture);
+                  }}
                 />
               ) : (
                 <div className="w-24 h-24 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-3xl shadow-lg">
