@@ -33,6 +33,18 @@ const MenuPage = () => {
 
   const products = productsData?.data?.products || productsData?.data || [];
 
+  // Debug: Log products data structure (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Products API Response:', productsData);
+    console.log('Products loaded:', products.length);
+    if (products.length > 0) {
+      console.log('Sample product:', products[0]);
+      console.log('Product fields:', Object.keys(products[0]));
+    } else {
+      console.warn('No products found in response');
+    }
+  }
+
   // Add to cart mutation
   const addToCartMutation = usePost('cart', API_ENDPOINTS.CART, {
     showSuccessToast: true,
@@ -47,29 +59,55 @@ const MenuPage = () => {
 
   // Filter products
   const filteredProducts = useMemo(() => {
+    if (!products || products.length === 0) {
+      return [];
+    }
+
     return products.filter((product) => {
-      // Search filter
-      if (
-        searchQuery &&
-        !product.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !product.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      ) {
+      // Only show available products to customers
+      // Backend: isAvailable (boolean) and stock (number, -1 means unlimited)
+      // Note: isAvailable defaults to true, so only hide if explicitly false
+      if (product.isAvailable === false) {
         return false;
+      }
+      
+      // Check stock - hide if stock is 0 (unless it's -1 which means unlimited)
+      // Only check if stock is explicitly set (not undefined/null)
+      if (product.stock !== undefined && product.stock !== null) {
+        if (product.stock !== -1 && product.stock <= 0) {
+          return false;
+        }
+      }
+
+      // Search filter
+      if (searchQuery && searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const nameMatch = product.name?.toLowerCase().includes(query);
+        const descMatch = product.description?.toLowerCase().includes(query);
+        const categoryMatch = (product.category || product.categoryName)?.toLowerCase().includes(query);
+        
+        if (!nameMatch && !descMatch && !categoryMatch) {
+          return false;
+        }
       }
 
       // Category filter
       const productCategory = product.category || product.categoryName;
-      if (selectedCategories.length > 0 && !selectedCategories.includes(productCategory)) {
-        return false;
+      if (selectedCategories.length > 0 && productCategory) {
+        if (!selectedCategories.includes(productCategory)) {
+          return false;
+        }
       }
 
       // Price filter
-      if (product.price < priceRange.min || (priceRange.max !== Infinity && product.price > priceRange.max)) {
+      const productPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
+      if (productPrice < priceRange.min || (priceRange.max !== Infinity && productPrice > priceRange.max)) {
         return false;
       }
 
       // Rating filter
-      if ((product.rating || 0) < minRating) {
+      const productRating = typeof product.rating === 'number' ? product.rating : parseFloat(product.rating) || 0;
+      if (productRating < minRating) {
         return false;
       }
 
@@ -234,13 +272,29 @@ const MenuPage = () => {
                     : "space-y-4"
                 }
               >
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product._id || product.id}
-                    product={product}
-                    onAddToCart={handleAddToCart}
-                  />
-                ))}
+                {filteredProducts.map((product) => {
+                  // Ensure product has required fields
+                  if (!product || (!product._id && !product.id)) {
+                    console.warn('Invalid product:', product);
+                    return null;
+                  }
+                  return (
+                    <ProductCard
+                      key={product._id || product.id}
+                      product={product}
+                      onAddToCart={handleAddToCart}
+                    />
+                  );
+                })}
+              </div>
+            ) : products.length > 0 ? (
+              <div className="text-center py-12">
+                <p className="text-charcoal-grey/60 mb-4">
+                  No products match your current filters
+                </p>
+                <Button variant="secondary" onClick={clearAllFilters}>
+                  Clear All Filters
+                </Button>
               </div>
             ) : (
               <EmptyState onClearFilters={clearAllFilters} />

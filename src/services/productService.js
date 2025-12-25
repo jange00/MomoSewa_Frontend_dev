@@ -78,3 +78,54 @@ export const deleteProduct = async (productId) => {
     throw handleApiError(error);
   }
 };
+
+/**
+ * Upload product image
+ * @param {File} file - Image file to upload
+ * @returns {Promise<Object>} Upload response with image URL
+ */
+export const uploadProductImage = async (file) => {
+  try {
+    if (!file) {
+      throw new Error('No file provided');
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    console.log('Uploading product image:', {
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+    });
+    
+    // Try common upload endpoints - adjust based on your backend
+    // Option 1: Dedicated upload endpoint (most common)
+    const uploadEndpoints = [
+      `${API_ENDPOINTS.PRODUCTS}/upload-image`,
+      `${API_ENDPOINTS.PRODUCTS}/upload`,
+      `/api/v1/upload/image`, // Generic upload endpoint
+    ];
+    
+    let lastError = null;
+    for (const endpoint of uploadEndpoints) {
+      try {
+        console.log(`Trying upload endpoint: ${endpoint}`);
+        const response = await apiClient.post(endpoint, formData);
+        const result = handleApiResponse(response);
+        console.log('Upload successful via:', endpoint);
+        return result;
+      } catch (error) {
+        console.warn(`Upload failed for ${endpoint}:`, error.response?.status, error.response?.data?.message);
+        lastError = error;
+        // Continue to next endpoint
+      }
+    }
+    
+    // If all endpoints failed, throw the last error
+    throw lastError || new Error('All upload endpoints failed');
+  } catch (error) {
+    console.error('Product image upload error:', error);
+    throw handleApiError(error);
+  }
+};

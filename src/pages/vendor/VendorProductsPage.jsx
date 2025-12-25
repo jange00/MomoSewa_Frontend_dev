@@ -12,6 +12,7 @@ import { useGet, usePost, useDelete } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
 import { PRODUCT_CATEGORIES, DEFAULT_CATEGORY, isValidCategory } from "../../common/productCategories";
+import { uploadProductImage } from "../../services/productService";
 
 const VendorProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -209,13 +210,28 @@ const VendorProductsPage = () => {
   };
 
   const handleImageUrlChange = (url, isEdit = false) => {
+    const trimmedUrl = url ? url.trim() : "";
     if (isEdit) {
-      setEditingProduct({ ...editingProduct, imageUrl: url, image: url });
-      setEditingProductImagePreview(url);
+      setEditingProduct({ 
+        ...editingProduct, 
+        imageUrl: trimmedUrl
+      });
+      if (trimmedUrl) {
+        setEditingProductImagePreview(trimmedUrl);
+      } else {
+        setEditingProductImagePreview(null);
+      }
       setEditingProductImageFile(null);
     } else {
-      setNewProduct({ ...newProduct, imageUrl: url, image: url });
-      setNewProductImagePreview(url);
+      setNewProduct({ 
+        ...newProduct, 
+        imageUrl: trimmedUrl
+      });
+      if (trimmedUrl) {
+        setNewProductImagePreview(trimmedUrl);
+      } else {
+        setNewProductImagePreview(null);
+      }
       setNewProductImageFile(null);
     }
   };
@@ -282,75 +298,77 @@ const VendorProductsPage = () => {
       return;
     }
 
-    // Build product data according to backend schema
-    const productData = {
-      name: newProduct.name.trim(),
-      description: newProduct.description ? newProduct.description.trim() : undefined,
-      price: price,
-      category: category,
-      stock: stock,
-      isAvailable: newProduct.isAvailable !== undefined ? newProduct.isAvailable : true, // Backend default is true
-    };
-
-    // Add originalPrice if provided
+    // Build FormData (same pattern as profile picture upload)
+    const productFormData = new FormData();
+    
+    // Add text fields (same field names as backend expects)
+    productFormData.append('name', newProduct.name.trim());
+    productFormData.append('price', price.toString());
+    productFormData.append('category', category);
+    productFormData.append('stock', stock.toString());
+    productFormData.append('isAvailable', (newProduct.isAvailable !== undefined ? newProduct.isAvailable : true).toString());
+    
+    // Add optional text fields
+    if (newProduct.description && newProduct.description.trim()) {
+      productFormData.append('description', newProduct.description.trim());
+    }
     if (originalPrice !== null) {
-      productData.originalPrice = originalPrice;
+      productFormData.append('originalPrice', originalPrice.toString());
     }
-
-    // Add emoji if provided (backend default is '🥟')
     if (newProduct.emoji && newProduct.emoji.trim()) {
-      productData.emoji = newProduct.emoji.trim();
+      productFormData.append('emoji', newProduct.emoji.trim());
     }
-
-    // Handle image - backend expects 'image' field (single image)
-    // If image file exists, upload it first (TODO: implement file upload)
+    
+    // Add image file (same field name as profile picture: 'image')
     if (newProductImageFile) {
-      // TODO: Upload image file and get URL, then add to productData.image
-      // For now, use imageUrl if provided
-      if (newProduct.imageUrl) {
-        productData.image = newProduct.imageUrl.trim();
-      }
-    } else if (newProduct.imageUrl) {
-      // Use image URL directly
-      productData.image = newProduct.imageUrl.trim();
-    }
-    // Note: Backend has default emoji '🥟' if no image is provided
-    
-    // Handle images array - backend also supports images: [String]
-    // If multiple images are provided, add them to images array
-    // For now, if image is provided, we can add it to both image and images[0]
-    if (productData.image) {
-      productData.images = [productData.image];
+      productFormData.append('image', newProductImageFile);
+      console.log('✅ Image file added to FormData:', {
+        fileName: newProductImageFile.name,
+        fileType: newProductImageFile.type,
+        fileSize: newProductImageFile.size,
+      });
+    } else if (newProduct.imageUrl && newProduct.imageUrl.trim()) {
+      // If no file but URL provided, add as image field (backend may accept URL string)
+      productFormData.append('image', newProduct.imageUrl.trim());
+      console.log('✅ Image URL added to FormData:', newProduct.imageUrl.trim());
     }
     
-    // Handle variants - backend supports variants: [{ name: String, price: Number }]
-    // Variants are optional, so we only add if they exist
-    // TODO: Add UI for managing variants
-    // For now, variants array will be empty (backend default)
-
-    // Log the data being sent for debugging
-    console.log("Sending product data:", productData);
+    // Debug: Verify FormData entries (same as profile picture)
+    const formDataEntries = [];
+    for (let pair of productFormData.entries()) {
+      formDataEntries.push({ 
+        key: pair[0], 
+        value: pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1] 
+      });
+    }
+    console.log('📦 FormData entries:', formDataEntries);
 
     try {
-      await createProductMutation.mutateAsync(productData, {
-        onSuccess: () => {
-          refetch();
-          setNewProduct({
-            name: "",
-            description: "",
-            price: "",
-            originalPrice: "",
-            category: DEFAULT_CATEGORY,
-            stock: "-1",
-            emoji: "🥟",
-            imageUrl: "",
-            isAvailable: true,
-          });
-          setNewProductImageFile(null);
-          setNewProductImagePreview(null);
-          setIsAdding(false);
-        },
-      });
+      // Use direct API call with FormData (same pattern as profile picture)
+      // The request interceptor will handle removing Content-Type for FormData
+      // Axios will automatically set Content-Type with boundary for FormData
+      const response = await apiClient.post(API_ENDPOINTS.PRODUCTS, productFormData);
+      
+      if (response.data.success) {
+        toast.success(response.data.message || "Product created successfully");
+        refetch();
+        setNewProduct({
+          name: "",
+          description: "",
+          price: "",
+          originalPrice: "",
+          category: DEFAULT_CATEGORY,
+          stock: "-1",
+          emoji: "🥟",
+          imageUrl: "",
+          isAvailable: true,
+        });
+        setNewProductImageFile(null);
+        setNewProductImagePreview(null);
+        setIsAdding(false);
+      } else {
+        throw new Error(response.data.message || "Failed to create product");
+      }
     } catch (error) {
       console.error("Failed to create product:", error);
       
@@ -493,52 +511,58 @@ const VendorProductsPage = () => {
       return;
     }
 
-    // Build product data according to backend schema
-    const productData = {
-      name: editingProduct.name.trim(),
-      description: editingProduct.description ? editingProduct.description.trim() : undefined,
-      price: price,
-      category: category,
-      stock: stock,
-      isAvailable: editingProduct.isAvailable !== undefined ? editingProduct.isAvailable : true, // Backend default is true
-    };
-
-    // Add originalPrice if provided
+    // Build FormData (same pattern as profile picture upload)
+    const productFormData = new FormData();
+    
+    // Add text fields (same field names as backend expects)
+    productFormData.append('name', editingProduct.name.trim());
+    productFormData.append('price', price.toString());
+    productFormData.append('category', category);
+    productFormData.append('stock', stock.toString());
+    productFormData.append('isAvailable', (editingProduct.isAvailable !== undefined ? editingProduct.isAvailable : true).toString());
+    
+    // Add optional text fields
+    if (editingProduct.description && editingProduct.description.trim()) {
+      productFormData.append('description', editingProduct.description.trim());
+    }
     if (originalPrice !== null) {
-      productData.originalPrice = originalPrice;
+      productFormData.append('originalPrice', originalPrice.toString());
     }
-
-    // Add emoji if provided (backend default is '🥟')
     if (editingProduct.emoji && editingProduct.emoji.trim()) {
-      productData.emoji = editingProduct.emoji.trim();
-    }
-
-    // Handle image - backend expects 'image' field (single String, default: null)
-    // Backend also has 'images' array (Array of Strings, default: [])
-    let imageUrl = null;
-    if (editingProductImageFile) {
-      // TODO: Upload image file and get URL, then add to productData.image
-      if (editingProduct.imageUrl) {
-        imageUrl = editingProduct.imageUrl.trim();
-      }
-    } else if (editingProduct.imageUrl) {
-      // Use image URL directly
-      imageUrl = editingProduct.imageUrl.trim();
+      productFormData.append('emoji', editingProduct.emoji.trim());
     }
     
-    // Add image to productData if provided
-    if (imageUrl) {
-      productData.image = imageUrl;
-      // Also add to images array (backend supports both)
-      productData.images = [imageUrl];
+    // Add image file (same field name as profile picture: 'image')
+    if (editingProductImageFile) {
+      productFormData.append('image', editingProductImageFile);
+      console.log('✅ Image file added to FormData for edit:', {
+        fileName: editingProductImageFile.name,
+        fileType: editingProductImageFile.type,
+        fileSize: editingProductImageFile.size,
+      });
+    } else if (editingProduct.imageUrl && editingProduct.imageUrl.trim()) {
+      // If no file but URL provided, add as image field (backend may accept URL string)
+      productFormData.append('image', editingProduct.imageUrl.trim());
+      console.log('✅ Image URL added to FormData for edit:', editingProduct.imageUrl.trim());
     }
-    // Note: Backend has default emoji '🥟' if no image is provided
+    
+    // Debug: Verify FormData entries (same as profile picture)
+    const formDataEntries = [];
+    for (let pair of productFormData.entries()) {
+      formDataEntries.push({ 
+        key: pair[0], 
+        value: pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1] 
+      });
+    }
+    console.log('📦 FormData entries for edit:', formDataEntries);
 
     try {
-      // Use direct API call with ID in endpoint
+      // Use direct API call with FormData (same pattern as profile picture)
+      // The request interceptor will handle removing Content-Type for FormData
+      // Axios will automatically set Content-Type with boundary for FormData
       const response = await apiClient.put(
         `${API_ENDPOINTS.PRODUCTS}/${id}`,
-        productData
+        productFormData
       );
       
       if (response.data.success) {
@@ -1024,17 +1048,11 @@ const VendorProductsPage = () => {
                     <h3 className="text-xl font-bold text-charcoal-grey mb-2">
                       No products found
                     </h3>
-                    <p className="text-charcoal-grey/60 mb-6">
+                    <p className="text-charcoal-grey/60">
                       {searchQuery || selectedCategory !== "all"
                         ? "Try adjusting your search or filters"
-                        : "Add your first product to get started"}
+                        : "Use the 'Add Product' button above to get started"}
                     </p>
-                    {(!searchQuery && selectedCategory === "all") && (
-                      <Button variant="primary" size="md" onClick={() => setIsAdding(true)}>
-                        <FiPlus className="w-5 h-5" />
-                        Add Product
-                      </Button>
-                    )}
                   </div>
                 </Card>
               </div>
@@ -1353,17 +1371,11 @@ const VendorProductsPage = () => {
                   <h3 className="text-xl font-bold text-charcoal-grey mb-2">
                     No products found
                   </h3>
-                  <p className="text-charcoal-grey/60 mb-6">
+                  <p className="text-charcoal-grey/60">
                     {searchQuery || selectedCategory !== "all"
                       ? "Try adjusting your search or filters"
-                      : "Add your first product to get started"}
+                      : "Use the 'Add Product' button above to get started"}
                   </p>
-                  {(!searchQuery && selectedCategory === "all") && (
-                    <Button variant="primary" size="md" onClick={() => setIsAdding(true)}>
-                      <FiPlus className="w-5 h-5" />
-                      Add Product
-                    </Button>
-                  )}
                 </div>
               </Card>
             ) : (
@@ -1446,24 +1458,6 @@ const VendorProductsPage = () => {
               ))
             )}
           </div>
-        )}
-
-        {products.length === 0 && (
-          <Card className="p-12">
-            <div className="text-center">
-              <div className="text-6xl mb-4">🍽️</div>
-              <h3 className="text-xl font-bold text-charcoal-grey mb-2">
-                No products yet
-              </h3>
-              <p className="text-charcoal-grey/60 mb-6">
-                Add your first product to start selling
-              </p>
-              <Button variant="primary" size="md" onClick={() => setIsAdding(true)}>
-                <FiPlus className="w-5 h-5" />
-                Add Product
-              </Button>
-            </div>
-          </Card>
         )}
 
         {/* Confirmation Dialog */}

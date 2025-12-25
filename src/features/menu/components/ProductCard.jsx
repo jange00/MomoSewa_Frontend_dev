@@ -1,17 +1,45 @@
-import { FiStar, FiShoppingCart } from "react-icons/fi";
+import { FiStar, FiShoppingCart, FiMapPin, FiShoppingBag } from "react-icons/fi";
 import Button from "../../../ui/buttons/Button";
 import Card from "../../../ui/cards/Card";
 
 const ProductCard = ({ product, onAddToCart }) => {
   // Get product image - check image, images array, or use emoji
+  // Backend schema: image (String, default: null), images (Array of Strings, default: [])
   const getProductImage = () => {
+    // First check single image field (primary source)
     if (product.image) {
-      return product.image;
+      if (typeof product.image === 'string' && product.image.trim() && product.image !== 'null') {
+        const trimmed = product.image.trim();
+        // Validate it's a valid URL or data URL
+        if (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+          return trimmed;
+        }
+      }
     }
-    // Check images array (backend has images: [String])
+    
+    // Then check images array (backend has images: [String])
     if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-      return product.images[0];
+      // Find first valid image URL in the array
+      const validImage = product.images.find(img => {
+        if (!img || typeof img !== 'string') return false;
+        const trimmed = img.trim();
+        return trimmed && trimmed !== 'null' && (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/'));
+      });
+      if (validImage) {
+        return validImage.trim();
+      }
     }
+    
+    // Also check imageUrl (legacy support, though backend uses 'image')
+    if (product.imageUrl) {
+      if (typeof product.imageUrl === 'string' && product.imageUrl.trim() && product.imageUrl !== 'null') {
+        const trimmed = product.imageUrl.trim();
+        if (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+          return trimmed;
+        }
+      }
+    }
+    
     return null;
   };
 
@@ -76,6 +104,37 @@ const ProductCard = ({ product, onAddToCart }) => {
   const reviewCount = getReviewCount();
   const available = isProductAvailable();
 
+  // Get vendor information - check both vendor and vendorId (which might be populated)
+  const getVendorInfo = () => {
+    const vendor = product.vendor || product.vendorId;
+    if (!vendor) return null;
+    
+    // If vendorId is just an ID string, return null (no details)
+    if (typeof vendor === 'string') return null;
+    
+    // If vendor is an object with details
+    return {
+      name: vendor.storeName || vendor.businessName || vendor.name,
+      location: vendor.location || vendor.address || vendor.businessAddress || vendor.city,
+    };
+  };
+
+  const vendorInfo = getVendorInfo();
+
+  // Debug logging (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    if (!productImage && product.name) {
+      console.log('Product without image:', {
+        name: product.name,
+        image: product.image,
+        images: product.images,
+        imageUrl: product.imageUrl,
+        emoji: product.emoji,
+        vendor: product.vendor || product.vendorId
+      });
+    }
+  }
+
   return (
     <Card className="p-0 overflow-hidden group">
       <div className="relative">
@@ -88,13 +147,17 @@ const ProductCard = ({ product, onAddToCart }) => {
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
               onError={(e) => {
                 // Fallback to emoji if image fails to load
+                console.warn('Image failed to load:', productImage, 'for product:', product.name);
                 e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'block';
+                const emojiSpan = e.target.parentElement.querySelector('.product-emoji');
+                if (emojiSpan) {
+                  emojiSpan.style.display = 'block';
+                }
               }}
             />
           ) : null}
-          <span className={`text-7xl ${productImage ? 'hidden' : ''}`}>
-            {product.emoji || "🥟"}
+          <span className={`text-7xl product-emoji ${productImage ? 'hidden' : 'block'}`}>
+            {product.emoji && product.emoji.trim() ? product.emoji : "🥟"}
           </span>
           
           {/* Category Badge */}
@@ -129,9 +192,34 @@ const ProductCard = ({ product, onAddToCart }) => {
           <h3 className="font-bold text-charcoal-grey text-lg mb-2 line-clamp-1">
             {product.name || 'Unnamed Product'}
           </h3>
-          <p className="text-sm text-charcoal-grey/60 mb-3 line-clamp-2 min-h-[2.5rem]">
-            {product.description || 'No description available'}
-          </p>
+          
+          {/* Vendor/Shop Info */}
+          {vendorInfo && (
+            <div className="mb-2 space-y-1 pb-2 border-b border-charcoal-grey/5">
+              {vendorInfo.name && (
+                <div className="flex items-center gap-1.5 text-xs text-charcoal-grey/70">
+                  <FiShoppingBag className="w-3 h-3 text-deep-maroon/70 flex-shrink-0" />
+                  <span className="font-medium line-clamp-1">
+                    {vendorInfo.name}
+                  </span>
+                </div>
+              )}
+              {vendorInfo.location && (
+                <div className="flex items-center gap-1.5 text-xs text-charcoal-grey/60">
+                  <FiMapPin className="w-3 h-3 text-charcoal-grey/50 flex-shrink-0" />
+                  <span className="line-clamp-1">
+                    {vendorInfo.location}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {product.description && product.description.trim() && (
+            <p className="text-sm text-charcoal-grey/60 mb-3 line-clamp-3">
+              {product.description.trim()}
+            </p>
+          )}
 
           {/* Rating */}
           <div className="flex items-center gap-2 mb-4">
@@ -175,4 +263,5 @@ const ProductCard = ({ product, onAddToCart }) => {
 };
 
 export default ProductCard;
+
 
