@@ -12,16 +12,20 @@ const VendorAnalyticsPage = () => {
   const [timeRange, setTimeRange] = useState("week");
 
   // Fetch vendor analytics from API
+  // Note: Backend route /vendors/analytics doesn't exist (it conflicts with /vendors/:id)
+  // Disabling API call and using empty/default data until backend fixes routing
   const { data: analyticsData, isLoading } = useGet(
     'vendor-analytics',
     `${API_ENDPOINTS.VENDORS}/analytics`,
     { 
-      showErrorToast: true,
+      showErrorToast: false, // Disable error toast to prevent annoying errors
+      enabled: false, // Disable the API call completely
       params: { timeRange }
     }
   );
 
-  const analytics = analyticsData?.data || {};
+  // Use empty data since the endpoint doesn't work (backend routing issue)
+  const analytics = {};
   
   // Use API data or provide defaults
   const analyticsStats = {
