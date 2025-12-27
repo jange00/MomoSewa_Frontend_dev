@@ -134,29 +134,6 @@ const VendorProductsPage = () => {
     return (product.isAvailable !== false) && (product.stock || product.quantity || 0) > 0;
   };
 
-  const handleToggleAvailability = async (id) => {
-    const product = products.find((p) => (p._id || p.id) === id);
-    if (!product) return;
-    
-    const newStatus = !product.isAvailable;
-    
-    try {
-      // Use direct API call with ID in endpoint
-      const response = await apiClient.patch(
-        `${API_ENDPOINTS.PRODUCTS}/${id}`,
-        { isAvailable: newStatus }
-      );
-      
-      if (response.data.success) {
-        toast.success(response.data.message || "Product availability updated");
-        refetch();
-      }
-    } catch (error) {
-      console.error("Failed to toggle availability:", error);
-      toast.error(error.response?.data?.message || "Failed to update product availability");
-    }
-  };
-
   const handleDelete = (id) => {
     const product = products.find((p) => (p._id || p.id) === id);
     if (!product) return;
@@ -351,21 +328,21 @@ const VendorProductsPage = () => {
       
       if (response.data.success) {
         toast.success(response.data.message || "Product created successfully");
-        refetch();
-        setNewProduct({
-          name: "",
-          description: "",
-          price: "",
+          refetch();
+          setNewProduct({
+            name: "",
+            description: "",
+            price: "",
           originalPrice: "",
           category: DEFAULT_CATEGORY,
           stock: "-1",
           emoji: "🥟",
-          imageUrl: "",
+            imageUrl: "",
           isAvailable: true,
-        });
-        setNewProductImageFile(null);
-        setNewProductImagePreview(null);
-        setIsAdding(false);
+          });
+          setNewProductImageFile(null);
+          setNewProductImagePreview(null);
+          setIsAdding(false);
       } else {
         throw new Error(response.data.message || "Failed to create product");
       }
@@ -728,8 +705,8 @@ const VendorProductsPage = () => {
                   Stock Quantity
                 </label>
                 <select
-                  value={newProduct.stock}
-                  onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
+                value={newProduct.stock}
+                onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
                   className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium"
                 >
                   <option value="-1">Unlimited (-1)</option>
@@ -756,8 +733,8 @@ const VendorProductsPage = () => {
                 <label className="block text-sm font-semibold text-charcoal-grey mb-2">
                   Emoji Icon
                 </label>
-                <Input
-                  type="text"
+              <Input
+                type="text"
                   value={newProduct.emoji}
                   onChange={(e) => setNewProduct({ ...newProduct, emoji: e.target.value })}
                   placeholder="🥟 (default)"
@@ -1192,12 +1169,12 @@ const VendorProductsPage = () => {
                         <option value="custom">Custom Amount</option>
                       </select>
                       {editingProduct?.stock === "custom" && (
-                        <Input
+                    <Input
                           label="Custom Stock Amount"
-                          type="number"
+                      type="number"
                           min="-1"
                           value={editingProduct?.customStock || ""}
-                          onChange={(e) => handleEditChange("stock", e.target.value)}
+                      onChange={(e) => handleEditChange("stock", e.target.value)}
                           placeholder="Enter stock quantity or -1 for unlimited"
                           className="mt-2"
                         />
@@ -1207,8 +1184,8 @@ const VendorProductsPage = () => {
                       <label className="block text-sm font-semibold text-charcoal-grey mb-2">
                         Emoji Icon
                       </label>
-                      <Input
-                        type="text"
+                    <Input
+                      type="text"
                         value={editingProduct?.emoji || "🥟"}
                         onChange={(e) => handleEditChange("emoji", e.target.value)}
                         placeholder="🥟 (default)"
@@ -1339,13 +1316,6 @@ const VendorProductsPage = () => {
                     Edit
                   </Button>
                   <Button
-                    variant={product.isAvailable ? "ghost" : "secondary"}
-                    size="sm"
-                    onClick={() => handleToggleAvailability(product._id || product.id)}
-                  >
-                    {product.isAvailable ? "Disable" : "Enable"}
-                  </Button>
-                  <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDelete(product._id || product.id)}
@@ -1442,13 +1412,6 @@ const VendorProductsPage = () => {
                         >
                           <FiEdit className="w-4 h-4" />
                           Edit
-                        </Button>
-                        <Button
-                          variant={product.isAvailable ? "ghost" : "secondary"}
-                          size="sm"
-                          onClick={() => handleToggleAvailability(product._id || product.id)}
-                        >
-                          {product.isAvailable ? "Disable" : "Enable"}
                         </Button>
                       </div>
                     </Card>
