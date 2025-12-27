@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { FiPlus, FiEdit, FiTrash2, FiPackage, FiX, FiSave, FiGrid, FiList, FiEye, FiEyeOff, FiExternalLink, FiSearch, FiImage, FiUpload, FiLink } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
@@ -16,6 +17,7 @@ import { uploadProductImage } from "../../services/productService";
 
 const VendorProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   
   // Fetch products from API
   const { data: productsData, isLoading, refetch } = useGet(
@@ -52,6 +54,22 @@ const VendorProductsPage = () => {
     if (selectedCategory !== "all") params.category = selectedCategory;
     setSearchParams(params, { replace: true });
   }, [searchQuery, selectedCategory, setSearchParams]);
+
+  // Debug: Log products data to verify it's updating
+  useEffect(() => {
+    if (productsData) {
+      console.log('📦 Products data updated:', {
+        hasData: !!productsData,
+        hasProducts: !!productsData?.data?.products,
+        productsCount: products.length,
+        sampleProduct: products[0] ? {
+          id: products[0]._id || products[0].id,
+          name: products[0].name,
+          price: products[0].price
+        } : null
+      });
+    }
+  }, [productsData, products]);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: "",
@@ -408,23 +426,46 @@ const VendorProductsPage = () => {
     if (!product) return;
     
     setEditingId(id);
+    
+    // Determine stock value for the select dropdown
+    let stockValue = "-1";
+    if (product.stock !== undefined && product.stock !== null) {
+      const stockNum = parseInt(product.stock);
+      // Check if it's one of the predefined options
+      if (stockNum === -1 || stockNum === 0 || stockNum === 10 || stockNum === 25 || stockNum === 50 || stockNum === 100) {
+        stockValue = stockNum.toString();
+      } else {
+        // Custom stock value
+        stockValue = "custom";
+      }
+    }
+    
     setEditingProduct({
       name: product.name || "",
       description: product.description || "",
       price: product.price ? product.price.toString() : "",
       originalPrice: product.originalPrice ? product.originalPrice.toString() : "",
       category: product.category || product.categoryName || DEFAULT_CATEGORY,
-      stock: product.stock !== undefined && product.stock !== null ? product.stock.toString() : "-1",
+      stock: stockValue,
+      customStock: (stockValue === "custom" && product.stock !== undefined && product.stock !== null) ? product.stock.toString() : "",
       emoji: product.emoji || "🥟",
       imageUrl: product.image || product.imageUrl || "",
       isAvailable: product.isAvailable !== undefined ? product.isAvailable : true,
     });
     
-    // Set image preview if product has an image URL
-    if (product.image && product.image.startsWith("http")) {
-      setEditingProductImagePreview(product.image);
-    } else if (product.imageUrl) {
-      setEditingProductImagePreview(product.imageUrl);
+    // Set image preview if product has an image (handle all formats: URL, base64, relative path)
+    const productImage = product.image || product.imageUrl || product.images?.[0];
+    if (productImage && typeof productImage === 'string' && productImage.trim()) {
+      // Handle http/https URLs, data URLs (base64), or relative paths
+      if (productImage.startsWith("http://") || 
+          productImage.startsWith("https://") || 
+          productImage.startsWith("data:") ||
+          productImage.startsWith("/")) {
+        setEditingProductImagePreview(productImage);
+      } else {
+        // For other cases, try to use it anyway
+        setEditingProductImagePreview(productImage);
+      }
     } else {
       setEditingProductImagePreview(null);
     }
@@ -451,7 +492,7 @@ const VendorProductsPage = () => {
       return;
     }
 
-    // Validate originalPrice if provided
+    // Validate originalPrice if provided (allow empty to remove it)
     let originalPrice = null;
     if (editingProduct.originalPrice && editingProduct.originalPrice.trim()) {
       originalPrice = parseFloat(editingProduct.originalPrice);
@@ -464,6 +505,7 @@ const VendorProductsPage = () => {
         return;
       }
     }
+    // If originalPrice is empty string, null will be sent (backend will handle removing it)
 
     // Validate stock - allow -1 for unlimited, or 0+ for limited stock
     let stock = -1; // Default to unlimited
@@ -488,71 +530,141 @@ const VendorProductsPage = () => {
       return;
     }
 
-    // Build FormData (same pattern as profile picture upload)
-    const productFormData = new FormData();
+    // Build product data object
+    const productData = {
+      name: editingProduct.name.trim(),
+      price: price,
+      category: category,
+      stock: stock,
+      isAvailable: editingProduct.isAvailable !== undefined ? editingProduct.isAvailable : true,
+    };
     
-    // Add text fields (same field names as backend expects)
-    productFormData.append('name', editingProduct.name.trim());
-    productFormData.append('price', price.toString());
-    productFormData.append('category', category);
-    productFormData.append('stock', stock.toString());
-    productFormData.append('isAvailable', (editingProduct.isAvailable !== undefined ? editingProduct.isAvailable : true).toString());
-    
-    // Add optional text fields
+    // Add optional fields
     if (editingProduct.description && editingProduct.description.trim()) {
-      productFormData.append('description', editingProduct.description.trim());
+      productData.description = editingProduct.description.trim();
     }
-    if (originalPrice !== null) {
-      productFormData.append('originalPrice', originalPrice.toString());
+    if (originalPrice !== null && originalPrice !== undefined) {
+      productData.originalPrice = originalPrice;
     }
     if (editingProduct.emoji && editingProduct.emoji.trim()) {
-      productFormData.append('emoji', editingProduct.emoji.trim());
+      productData.emoji = editingProduct.emoji.trim();
     }
     
-    // Add image file (same field name as profile picture: 'image')
-    if (editingProductImageFile) {
-      productFormData.append('image', editingProductImageFile);
-      console.log('✅ Image file added to FormData for edit:', {
-        fileName: editingProductImageFile.name,
-        fileType: editingProductImageFile.type,
-        fileSize: editingProductImageFile.size,
-      });
-    } else if (editingProduct.imageUrl && editingProduct.imageUrl.trim()) {
-      // If no file but URL provided, add as image field (backend may accept URL string)
-      productFormData.append('image', editingProduct.imageUrl.trim());
-      console.log('✅ Image URL added to FormData for edit:', editingProduct.imageUrl.trim());
-    }
+    // Check if we need FormData (only if uploading a new image file)
+    const hasNewImageFile = !!editingProductImageFile;
     
-    // Debug: Verify FormData entries (same as profile picture)
-    const formDataEntries = [];
-    for (let pair of productFormData.entries()) {
-      formDataEntries.push({ 
-        key: pair[0], 
-        value: pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1] 
-      });
-    }
-    console.log('📦 FormData entries for edit:', formDataEntries);
+    console.log('🔍 Sending update for product ID:', id);
+    console.log('🔍 Product data being sent:', productData);
+    console.log('🔍 Has new image file:', hasNewImageFile);
 
     try {
-      // Use direct API call with FormData (same pattern as profile picture)
-      // The request interceptor will handle removing Content-Type for FormData
-      // Axios will automatically set Content-Type with boundary for FormData
-      const response = await apiClient.put(
-        `${API_ENDPOINTS.PRODUCTS}/${id}`,
-        productFormData
-      );
+      let response;
+      
+      if (hasNewImageFile) {
+        // Use FormData when uploading a new image file
+        const productFormData = new FormData();
+        Object.keys(productData).forEach(key => {
+          productFormData.append(key, productData[key]);
+        });
+        productFormData.append('image', editingProductImageFile);
+        console.log('📤 Sending FormData (with image file)');
+        
+        response = await apiClient.put(
+          `${API_ENDPOINTS.PRODUCTS}/${id}`,
+          productFormData
+        );
+      } else {
+        // Use JSON when no image file is being uploaded
+        // Include image URL in JSON if it exists and is valid
+        if (editingProduct.imageUrl && editingProduct.imageUrl.trim()) {
+          const imageUrlToUse = editingProduct.imageUrl.trim();
+          if (imageUrlToUse.startsWith('http://') ||
+              imageUrlToUse.startsWith('https://') ||
+              imageUrlToUse.startsWith('data:') ||
+              imageUrlToUse.startsWith('/')) {
+            productData.image = imageUrlToUse;
+            console.log('📤 Including image URL in JSON data');
+          }
+        }
+        console.log('📤 Sending JSON data:', productData);
+        response = await apiClient.put(
+          `${API_ENDPOINTS.PRODUCTS}/${id}`,
+          productData
+        );
+      }
+      
+      console.log('✅ Product update response:', response.data);
+      console.log('✅ Updated product data:', response.data?.data);
       
       if (response.data.success) {
         toast.success(response.data.message || "Product updated successfully");
-        refetch();
+        
+        // Close edit form first
         setEditingId(null);
         setEditingProduct(null);
         setEditingProductImageFile(null);
         setEditingProductImagePreview(null);
+        
+        // Force React Query to invalidate and refetch the products query
+        // This ensures the UI updates with fresh data immediately
+        await queryClient.refetchQueries({ queryKey: ['vendor-products'], type: 'active' });
+        console.log('✅ Products query refetched');
+      } else {
+        throw new Error(response.data.message || "Failed to update product");
       }
     } catch (error) {
       console.error("Failed to update product:", error);
-      toast.error(error.response?.data?.message || "Failed to update product");
+      
+      // Enhanced error handling (same as add product)
+      if (error.response) {
+        console.error("Error Status:", error.response.status);
+        console.error("Error Data:", error.response.data);
+        
+        // Show validation errors if available
+        if (error.response.data?.details) {
+          console.error("Validation Errors:", error.response.data.details);
+          console.error("Validation Errors (full):", JSON.stringify(error.response.data.details, null, 2));
+          
+          // Handle array of validation errors
+          if (Array.isArray(error.response.data.details)) {
+            const errorMessages = error.response.data.details.map((err) => {
+              if (typeof err === 'string') {
+                return err;
+              } else if (err.path || err.field) {
+                const field = err.path || err.field || 'unknown';
+                const message = err.message || JSON.stringify(err);
+                return `${field}: ${message}`;
+              } else if (err.msg || err.message) {
+                return err.msg || err.message;
+              } else {
+                return JSON.stringify(err);
+              }
+            }).join('; ');
+            toast.error(`Validation errors: ${errorMessages}`);
+          } else if (typeof error.response.data.details === 'object') {
+            const errorMessages = Object.entries(error.response.data.details)
+              .map(([field, message]) => `${field}: ${Array.isArray(message) ? message.join(', ') : message}`)
+              .join('; ');
+            toast.error(`Validation errors: ${errorMessages}`);
+          } else {
+            toast.error(`Validation error: ${error.response.data.details}`);
+          }
+        } else if (error.response.data?.errors) {
+          console.error("Validation Errors:", error.response.data.errors);
+          const errorMessages = Array.isArray(error.response.data.errors)
+            ? error.response.data.errors.join(', ')
+            : JSON.stringify(error.response.data.errors);
+          toast.error(`Validation errors: ${errorMessages}`);
+        } else if (error.response.data?.message) {
+          toast.error(error.response.data.message);
+        } else {
+          toast.error("Failed to update product. Please try again.");
+        }
+      } else if (error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to update product. Please try again.");
+      }
     }
   };
 
@@ -1174,7 +1286,7 @@ const VendorProductsPage = () => {
                       type="number"
                           min="-1"
                           value={editingProduct?.customStock || ""}
-                      onChange={(e) => handleEditChange("stock", e.target.value)}
+                          onChange={(e) => handleEditChange("customStock", e.target.value)}
                           placeholder="Enter stock quantity or -1 for unlimited"
                           className="mt-2"
                         />
