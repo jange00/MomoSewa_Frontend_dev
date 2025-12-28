@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { FiChevronDown, FiLogOut } from "react-icons/fi";
 import { DASHBOARD_MENU_ITEMS } from "../../customer-dashboard/constants/menuItems";
-import { USER_ROLES } from "../../../common/roleConstants";
+import { VENDOR_DASHBOARD_MENU_ITEMS } from "../../vendor-dashboard/constants/menuItems";
+import { ADMIN_DASHBOARD_MENU_ITEMS } from "../../admin-dashboard/constants/menuItems";
+import { USER_ROLES, ROLE_DASHBOARD_ROUTES } from "../../../common/roleConstants";
 import { useAuth } from "../../../hooks/useAuth";
 
 const UserMenuDropdown = () => {
@@ -13,8 +15,31 @@ const UserMenuDropdown = () => {
   const { user, isAuthenticated, logout } = useAuth();
 
   // Get user info from useAuth hook
-  const userName = user?.name || "Customer";
+  const userName = user?.name || user?.storeName || user?.businessName || "User";
   const userRole = user?.role;
+  
+  // Normalize role (handle case variations from backend)
+  const normalizeRole = (role) => {
+    if (!role) return null;
+    return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+  };
+  
+  const normalizedRole = normalizeRole(userRole);
+  
+  // Get menu items based on role
+  const getMenuItems = () => {
+    if (normalizedRole === USER_ROLES.CUSTOMER) {
+      return DASHBOARD_MENU_ITEMS;
+    } else if (normalizedRole === USER_ROLES.VENDOR) {
+      return VENDOR_DASHBOARD_MENU_ITEMS;
+    } else if (normalizedRole === USER_ROLES.ADMIN) {
+      return ADMIN_DASHBOARD_MENU_ITEMS;
+    }
+    return [];
+  };
+  
+  const menuItems = getMenuItems();
+  const dashboardRoute = normalizedRole ? ROLE_DASHBOARD_ROUTES[normalizedRole] : null;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -49,8 +74,8 @@ const UserMenuDropdown = () => {
     }
   };
 
-  // Only show for authenticated Customer role
-  if (!isAuthenticated || userRole !== USER_ROLES.CUSTOMER) {
+  // Show for any authenticated user (Customer, Vendor, or Admin)
+  if (!isAuthenticated || !normalizedRole) {
     return null;
   }
 
@@ -99,29 +124,35 @@ const UserMenuDropdown = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-charcoal-grey text-sm truncate">{userName}</p>
-                  <p className="text-xs text-charcoal-grey/60 font-medium">My Account</p>
+                  <p className="text-xs text-charcoal-grey/60 font-medium">
+                    {normalizedRole === USER_ROLES.CUSTOMER ? "My Account" : 
+                     normalizedRole === USER_ROLES.VENDOR ? "Vendor Portal" : 
+                     normalizedRole === USER_ROLES.ADMIN ? "Admin Panel" : "Account"}
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Order Now Button - Prominent */}
-            <div className="px-4 pt-2 pb-3">
-              <Link
-                to="/menu"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-deep-maroon via-[#7a2533] to-deep-maroon text-white font-bold text-sm hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg relative overflow-hidden group"
-              >
-                <span className="text-lg">🥟</span>
-                <span>Order Now</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-golden-amber/25 via-transparent to-golden-amber/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </Link>
-            </div>
+            {/* Dashboard Link Button - Prominent */}
+            {dashboardRoute && (
+              <div className="px-4 pt-2 pb-3">
+                <Link
+                  to={dashboardRoute}
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-deep-maroon via-[#7a2533] to-deep-maroon text-white font-bold text-sm hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg relative overflow-hidden group"
+                >
+                  <span className="text-lg">🏠</span>
+                  <span>{normalizedRole === USER_ROLES.CUSTOMER ? "Order Now" : "Go to Dashboard"}</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-golden-amber/25 via-transparent to-golden-amber/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </Link>
+              </div>
+            )}
 
             {/* Menu Items */}
             <div className="py-2">
-              {DASHBOARD_MENU_ITEMS.map((item) => {
+              {menuItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
 
                 return (
                   <Link
@@ -134,7 +165,7 @@ const UserMenuDropdown = () => {
                         : "text-charcoal-grey/70 hover:bg-charcoal-grey/5 hover:text-deep-maroon"
                     }`}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    {Icon && <Icon className="w-5 h-5 flex-shrink-0" />}
                     <span>{item.label}</span>
                   </Link>
                 );

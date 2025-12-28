@@ -7,26 +7,28 @@ import toast from "react-hot-toast";
 import Logo from "../../../common/Logo";
 import { VENDOR_DASHBOARD_MENU_ITEMS } from "../constants/menuItems";
 import { FiLogOut } from "react-icons/fi";
-import { getVendorData, clearVendorData } from "../../../utils/vendorData";
+import { useAuth } from "../../../hooks/useAuth";
 
 const DashboardSidebar = ({ isMobileOpen, onClose }) => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const vendorData = getVendorData();
 
-  // Get user name from vendor data or default
-  const userName = vendorData.name || vendorData.businessName || "Vendor";
-  const userEmail = vendorData.email || "";
+  // Get user name from auth user or default
+  const userName = user?.name || user?.storeName || user?.businessName || "Vendor";
+  const userEmail = user?.email || "";
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsLoggingOut(true);
-    // Clear all vendor data
-    clearVendorData();
-    toast.success("Logged out successfully");
-    // Redirect to login
-    setTimeout(() => {
-      navigate("/login");
-    }, 300);
+    try {
+      // Use the proper logout function from useAuth which clears all auth data
+      await logout();
+      // Navigation is handled by the logout function
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to logout. Please try again.");
+      setIsLoggingOut(false);
+    }
   };
 
   return (

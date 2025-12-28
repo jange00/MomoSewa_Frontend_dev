@@ -18,16 +18,17 @@ const Navbar = () => {
     return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
   };
 
-  // Check if user is logged in as customer (case-insensitive)
+  // Check if user is logged in (any role)
   const userRole = normalizeRole(user?.role);
-  // const isCustomerLoggedIn = isAuthenticated && userRole === USER_ROLES.CUSTOMER;
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
+  const [isAnyUserLoggedIn, setIsAnyUserLoggedIn] = useState(false);
 
   useEffect(() => {
-  setIsCustomerLoggedIn(
-    isAuthenticated && userRole === USER_ROLES.CUSTOMER
-  );
-}, [isAuthenticated, userRole]);
+    setIsCustomerLoggedIn(
+      isAuthenticated && userRole === USER_ROLES.CUSTOMER
+    );
+    setIsAnyUserLoggedIn(isAuthenticated && userRole); // Any authenticated user
+  }, [isAuthenticated, userRole]);
 
   const navLinks = [
     { path: "/", label: "Home" },
@@ -112,7 +113,7 @@ const Navbar = () => {
             <div className="hidden sm:block w-px h-8 bg-charcoal-grey/10"></div>
 
             {/* User Menu Dropdown (if logged in) or Login Button (if not logged in) */}
-            {isCustomerLoggedIn ? (
+            {isAnyUserLoggedIn ? (
               <UserMenuDropdown />
             ) : (
               <Link

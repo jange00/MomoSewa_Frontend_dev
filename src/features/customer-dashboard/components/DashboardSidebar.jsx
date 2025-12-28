@@ -12,26 +12,27 @@ import {
 import { useState } from "react";
 import Logo from "../../../common/Logo";
 import { DASHBOARD_MENU_ITEMS } from "../constants/menuItems";
+import { useAuth } from "../../../hooks/useAuth";
 
 const DashboardSidebar = ({ isMobileOpen, onClose }) => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Get user name from localStorage or default
-  const userName = localStorage.getItem("name") || "Customer";
-  const userEmail = localStorage.getItem("email") || "";
+  // Get user name from auth user or default
+  const userName = user?.name || "Customer";
+  const userEmail = user?.email || "";
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsLoggingOut(true);
-    // Clear localStorage
-    localStorage.removeItem("role");
-    localStorage.removeItem("name");
-    localStorage.removeItem("email");
-    localStorage.removeItem("token");
-    // Redirect to login
-    setTimeout(() => {
-      navigate("/login");
-    }, 300);
+    try {
+      // Use the proper logout function from useAuth which clears all auth data
+      await logout();
+      // Navigation is handled by the logout function
+    } catch (error) {
+      console.error("Logout error:", error);
+      setIsLoggingOut(false);
+    }
   };
 
   return (
