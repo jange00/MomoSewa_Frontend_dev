@@ -263,12 +263,21 @@ const ProductCard = ({ product, onAddToCart }) => {
                 </div>
               )}
               {vendorInfo.location && (
-                <div className="flex items-center gap-1.5 text-xs text-charcoal-grey/60">
-                  <span className="text-base flex-shrink-0" role="img" aria-label="location">📍</span>
-                  <span className="line-clamp-1 flex-1">
+                <button
+                  onClick={() => {
+                    // Open Google Maps with the vendor address
+                    const encodedAddress = encodeURIComponent(vendorInfo.location);
+                    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+                    window.open(googleMapsUrl, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="flex items-center gap-1.5 text-xs text-charcoal-grey/60 hover:text-deep-maroon transition-colors duration-200 w-full text-left group"
+                  title={`View ${vendorInfo.location} on Google Maps`}
+                >
+                  <span className="text-base flex-shrink-0 group-hover:scale-110 transition-transform duration-200" role="img" aria-label="location">📍</span>
+                  <span className="line-clamp-1 flex-1 underline decoration-dotted underline-offset-2 group-hover:decoration-solid">
                     {vendorInfo.location}
                   </span>
-                </div>
+                </button>
               )}
             </div>
           )}
