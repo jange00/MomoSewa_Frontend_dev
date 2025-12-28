@@ -4,11 +4,15 @@ import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
 import Input from "../../ui/inputs/Input";
-import { getVendorData, updateVendorField, saveVendorData } from "../../utils/vendorData";
+import { useGet } from "../../hooks/useApi";
+import { updateVendorProfile } from "../../services/vendorService";
+import { changePassword } from "../../services/userService";
+import { API_ENDPOINTS } from "../../api/config";
 
 const VendorProfilePage = () => {
-  const vendorData = getVendorData();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -16,27 +20,45 @@ const VendorProfilePage = () => {
     confirmPassword: "",
   });
   const fileInputRef = useRef(null);
+
+  // Fetch vendor profile from API
+  const { data: vendorProfileData, isLoading, refetch } = useGet(
+    'vendor-profile',
+    `${API_ENDPOINTS.VENDORS}/profile`,
+    { 
+      showErrorToast: true 
+    }
+  );
+
+  // Extract vendor data - handle different response structures
+  const vendorData = vendorProfileData?.data?.vendor || vendorProfileData?.data || {};
+
   const [formData, setFormData] = useState({
-    name: vendorData.name || "",
-    email: vendorData.email || "",
-    phone: vendorData.phone || "",
+    name: "",
+    email: "",
+    phone: "",
   });
 
+  // Update form data when vendor profile data loads
   useEffect(() => {
-    const data = getVendorData();
-    setFormData({
-      name: data.name || "",
-      email: data.email || "",
-      phone: data.phone || "",
-    });
-  }, []);
+    if (vendorProfileData && !isLoading && vendorData) {
+      console.log('Vendor profile data loaded (Profile Page):', vendorProfileData);
+      console.log('Extracted vendor data (Profile Page):', vendorData);
+      
+      setFormData({
+        name: vendorData.name || vendorData.businessName || vendorData.storeName || "",
+        email: vendorData.email || "",
+        phone: vendorData.phone || vendorData.phoneNumber || "",
+      });
+    }
+  }, [vendorProfileData, isLoading]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validate form
     if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim()) {
       toast.error("Please fill in all fields");
@@ -48,24 +70,29 @@ const VendorProfilePage = () => {
       return;
     }
 
-    // Save vendor data
-    saveVendorData({
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-    });
+    setIsSaving(true);
 
-    setIsEditing(false);
-    toast.success("Profile updated successfully!");
-    
-    // TODO: Replace with actual API call
-    // try {
-    //   await api.put('/vendor/profile', formData);
-    //   toast.success("Profile updated successfully!");
-    //   setIsEditing(false);
-    // } catch (error) {
-    //   toast.error("Failed to update profile");
-    // }
+    try {
+      // Update vendor profile via API
+      const profileData = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+      };
+
+      await updateVendorProfile(profileData);
+      
+      // Refetch vendor profile to get updated data
+      await refetch();
+
+      setIsEditing(false);
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      toast.error(error.message || "Failed to update profile. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePhotoChange = () => {
@@ -94,7 +121,7 @@ const VendorProfilePage = () => {
     setPasswordData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePasswordSave = () => {
+  const handlePasswordSave = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       toast.error("Please fill in all fields");
       return;
@@ -110,24 +137,37 @@ const VendorProfilePage = () => {
       return;
     }
 
-    // TODO: Replace with actual API call
-    // try {
-    //   await api.put('/vendor/change-password', passwordData);
-    //   toast.success("Password changed successfully!");
-    //   setShowChangePassword(false);
-    //   setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    // } catch (error) {
-    //   toast.error("Failed to change password. Please check your current password.");
-    // }
+    setIsChangingPassword(true);
 
-    toast.success("Password changed successfully!");
-    setShowChangePassword(false);
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    try {
+      // Call change password API
+      await changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+
+      toast.success("Password changed successfully!");
+      setShowChangePassword(false);
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (error) {
+      console.error("Failed to change password:", error);
+      toast.error(error.message || "Failed to change password. Please check your current password.");
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -145,11 +185,21 @@ const VendorProfilePage = () => {
             </Button>
           ) : (
             <div className="flex gap-3">
-              <Button variant="ghost" size="md" onClick={() => setIsEditing(false)}>
+              <Button 
+                variant="ghost" 
+                size="md" 
+                onClick={() => setIsEditing(false)}
+                disabled={isSaving}
+              >
                 Cancel
               </Button>
-              <Button variant="primary" size="md" onClick={handleSave}>
-                Save Changes
+              <Button 
+                variant="primary" 
+                size="md" 
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           )}
@@ -268,8 +318,13 @@ const VendorProfilePage = () => {
                 placeholder="Confirm new password"
               />
               <div className="flex gap-3">
-                <Button variant="primary" size="md" onClick={handlePasswordSave}>
-                  Save Password
+                <Button 
+                  variant="primary" 
+                  size="md" 
+                  onClick={handlePasswordSave}
+                  disabled={isChangingPassword}
+                >
+                  {isChangingPassword ? "Changing..." : "Save Password"}
                 </Button>
                 <Button
                   variant="ghost"

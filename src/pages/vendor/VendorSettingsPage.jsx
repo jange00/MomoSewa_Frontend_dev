@@ -5,40 +5,68 @@ import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
 import Input from "../../ui/inputs/Input";
 import Checkbox from "../../ui/inputs/Checkbox";
-import { getVendorData, saveVendorData } from "../../utils/vendorData";
+import { useGet } from "../../hooks/useApi";
+import { updateVendorProfile } from "../../services/vendorService";
+import { changePassword } from "../../services/userService";
+import { API_ENDPOINTS } from "../../api/config";
 
 const VendorSettingsPage = () => {
-  const vendorData = getVendorData();
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+
+  // Fetch vendor profile from API
+  const { data: vendorProfileData, isLoading, refetch } = useGet(
+    'vendor-profile-settings',
+    `${API_ENDPOINTS.VENDORS}/profile`,
+    { 
+      showErrorToast: true 
+    }
+  );
+
   const [settings, setSettings] = useState({
-    storeName: vendorData.storeName || vendorData.businessName || "My Momo Store",
-    storeDescription: vendorData.storeDescription || "Delicious momo delivered fresh to your door",
-    phone: vendorData.phone || "+977 9800000000",
-    email: vendorData.email || "vendor@example.com",
-    address: vendorData.businessAddress || "",
+    storeName: "",
+    storeDescription: "",
+    phone: "",
+    email: "",
+    address: "",
     autoAcceptOrders: localStorage.getItem("autoAcceptOrders") === "true" || false,
     emailNotifications: localStorage.getItem("emailNotifications") !== "false",
     smsNotifications: localStorage.getItem("smsNotifications") === "true" || false,
   });
 
+  // Update settings when vendor profile data loads
   useEffect(() => {
-    const data = getVendorData();
-    setSettings({
-      storeName: data.storeName || data.businessName || "My Momo Store",
-      storeDescription: data.storeDescription || "Delicious momo delivered fresh to your door",
-      phone: data.phone || "+977 9800000000",
-      email: data.email || "vendor@example.com",
-      address: data.businessAddress || "",
-      autoAcceptOrders: localStorage.getItem("autoAcceptOrders") === "true" || false,
-      emailNotifications: localStorage.getItem("emailNotifications") !== "false",
-      smsNotifications: localStorage.getItem("smsNotifications") === "true" || false,
-    });
-  }, []);
+    if (vendorProfileData && !isLoading) {
+      // Log the full response to understand the structure
+      console.log('Full vendor profile response:', JSON.stringify(vendorProfileData, null, 2));
+      
+      // Try multiple paths to extract vendor data
+      const data = vendorProfileData?.data?.vendor || 
+                   vendorProfileData?.data || 
+                   vendorProfileData?.vendor ||
+                   vendorProfileData || {};
+      
+      console.log('Using vendor data:', data);
+      console.log('Available fields:', Object.keys(data));
+      
+      setSettings(prev => ({
+        storeName: data.businessName || data.storeName || data.name || prev.storeName || "",
+        storeDescription: data.description || data.storeDescription || data.bio || prev.storeDescription || "",
+        phone: data.phone || data.phoneNumber || prev.phone || "",
+        email: data.email || prev.email || "",
+        address: data.businessAddress || data.address || data.location || prev.address || "",
+        autoAcceptOrders: localStorage.getItem("autoAcceptOrders") === "true" || false,
+        emailNotifications: localStorage.getItem("emailNotifications") !== "false",
+        smsNotifications: localStorage.getItem("smsNotifications") === "true" || false,
+      }));
+    }
+  }, [vendorProfileData, isLoading]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -48,36 +76,49 @@ const VendorSettingsPage = () => {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validate required fields
     if (!settings.storeName.trim() || !settings.phone.trim() || !settings.email.trim()) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    // Save vendor data
-    saveVendorData({
-      storeName: settings.storeName,
-      storeDescription: settings.storeDescription,
-      phone: settings.phone,
-      email: settings.email,
-      businessAddress: settings.address,
-    });
+    // Validate email format
+    if (!/^[\w\.-]+@[\w\.-]+\.\w+$/.test(settings.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
 
-    // Save notification preferences
-    localStorage.setItem("autoAcceptOrders", settings.autoAcceptOrders.toString());
-    localStorage.setItem("emailNotifications", settings.emailNotifications.toString());
-    localStorage.setItem("smsNotifications", settings.smsNotifications.toString());
+    setIsSaving(true);
 
-    toast.success("Settings saved successfully!");
-    
-    // TODO: Replace with actual API call
-    // try {
-    //   await api.put('/vendor/settings', settings);
-    //   toast.success("Settings saved successfully!");
-    // } catch (error) {
-    //   toast.error("Failed to save settings");
-    // }
+    try {
+      // Prepare profile data for API
+      const profileData = {
+        businessName: settings.storeName.trim(),
+        description: settings.storeDescription.trim(),
+        phone: settings.phone.trim(),
+        email: settings.email.trim(),
+        businessAddress: settings.address.trim(),
+      };
+
+      // Update vendor profile via API
+      await updateVendorProfile(profileData);
+
+      // Save notification preferences to localStorage (these might not have backend endpoints)
+      localStorage.setItem("autoAcceptOrders", settings.autoAcceptOrders.toString());
+      localStorage.setItem("emailNotifications", settings.emailNotifications.toString());
+      localStorage.setItem("smsNotifications", settings.smsNotifications.toString());
+
+      // Refetch vendor profile to get updated data
+      await refetch();
+
+      toast.success("Settings saved successfully!");
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      toast.error(error.message || "Failed to save settings. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -85,7 +126,7 @@ const VendorSettingsPage = () => {
     setPasswordData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePasswordSave = () => {
+  const handlePasswordSave = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       toast.error("Please fill in all fields");
       return;
@@ -101,24 +142,37 @@ const VendorSettingsPage = () => {
       return;
     }
 
-    // TODO: Replace with actual API call
-    // try {
-    //   await api.put('/vendor/change-password', passwordData);
-    //   toast.success("Password changed successfully!");
-    //   setShowChangePassword(false);
-    //   setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    // } catch (error) {
-    //   toast.error("Failed to change password. Please check your current password.");
-    // }
+    setIsChangingPassword(true);
 
-    toast.success("Password changed successfully!");
-    setShowChangePassword(false);
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    try {
+      // Call change password API
+      await changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+
+      toast.success("Password changed successfully!");
+      setShowChangePassword(false);
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (error) {
+      console.error("Failed to change password:", error);
+      toast.error(error.message || "Failed to change password. Please check your current password.");
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -129,8 +183,13 @@ const VendorSettingsPage = () => {
               Configure your vendor account settings
             </p>
           </div>
-          <Button variant="primary" size="md" onClick={handleSave}>
-            Save Changes
+          <Button 
+            variant="primary" 
+            size="md" 
+            onClick={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
 
@@ -154,10 +213,11 @@ const VendorSettingsPage = () => {
             />
             <Input
               label="Store Description"
-              type="textarea"
+              type="text"
               name="storeDescription"
               value={settings.storeDescription}
               onChange={handleChange}
+              placeholder="Describe your store"
             />
             <Input
               label="Phone Number"
@@ -294,8 +354,13 @@ const VendorSettingsPage = () => {
                 placeholder="Confirm new password"
               />
               <div className="flex gap-3">
-                <Button variant="primary" size="md" onClick={handlePasswordSave}>
-                  Save Password
+                <Button 
+                  variant="primary" 
+                  size="md" 
+                  onClick={handlePasswordSave}
+                  disabled={isChangingPassword}
+                >
+                  {isChangingPassword ? "Changing..." : "Save Password"}
                 </Button>
                 <Button
                   variant="ghost"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { FiTrendingUp, FiBarChart2, FiPackage, FiUsers } from "react-icons/fi";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import Card from "../../ui/cards/Card";
@@ -11,42 +11,110 @@ const COLORS = ["#7a2533", "#d4af37", "#3b82f6", "#10b981", "#f59e0b"];
 const VendorAnalyticsPage = () => {
   const [timeRange, setTimeRange] = useState("week");
 
-  // Fetch vendor analytics from API
-  // Note: Backend route /vendors/analytics doesn't exist (it conflicts with /vendors/:id)
-  // Disabling API call and using empty/default data until backend fixes routing
-  const { data: analyticsData, isLoading } = useGet(
-    'vendor-analytics',
-    `${API_ENDPOINTS.VENDORS}/analytics`,
+  // Fetch vendor orders (calculate analytics from orders since /vendors/analytics endpoint doesn't exist)
+  const { data: ordersData, isLoading } = useGet(
+    'vendor-orders-analytics',
+    API_ENDPOINTS.ORDERS,
     { 
-      showErrorToast: false, // Disable error toast to prevent annoying errors
-      enabled: false, // Disable the API call completely
-      params: { timeRange }
+      showErrorToast: false,
     }
   );
 
-  // Use empty data since the endpoint doesn't work (backend routing issue)
-  const analytics = {};
-  
-  // Use API data or provide defaults
-  const analyticsStats = {
-    totalRevenue: analytics.totalRevenue || 0,
-    totalOrders: analytics.totalOrders || 0,
-    totalCustomers: analytics.totalCustomers || 0,
-    averageOrderValue: analytics.averageOrderValue || 0,
-    revenueTrend: analytics.revenueTrend || 0,
-    ordersTrend: analytics.ordersTrend || 0,
-    customersTrend: analytics.customersTrend || 0,
-    avgOrderTrend: analytics.avgOrderTrend || 0,
-  };
+  const orders = Array.isArray(ordersData?.data?.orders) ? ordersData.data.orders :
+                 Array.isArray(ordersData?.data) ? ordersData.data : [];
 
-  // Revenue data from API or empty
-  const revenueData = analytics.revenueData || analytics.chartData?.revenue || [];
+  // Calculate analytics from orders
+  const analyticsStats = useMemo(() => {
+    const deliveredOrders = orders.filter(o => o && o.status === 'delivered');
+    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + (parseFloat(o.total) || parseFloat(o.amount) || 0), 0);
+    const totalOrders = orders.length;
+    const uniqueCustomers = new Set(orders.map(o => {
+      const customer = o.customer || o.customerId;
+      return customer?._id || customer?.id || customer;
+    }).filter(Boolean)).size;
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-  // Order status distribution from API or empty
-  const orderStatusData = analytics.orderStatusData || analytics.chartData?.orderStatus || [];
+    return {
+      totalRevenue,
+      totalOrders,
+      totalCustomers: uniqueCustomers,
+      averageOrderValue,
+      revenueTrend: 0, // TODO: Calculate trend from previous period
+      ordersTrend: 0,
+      customersTrend: 0,
+      avgOrderTrend: 0,
+    };
+  }, [orders]);
 
-  // Top products performance from API or empty
-  const productPerformanceData = analytics.productPerformanceData || analytics.chartData?.products || [];
+  // Calculate revenue data by date (for line chart)
+  const revenueData = useMemo(() => {
+    const dateMap = new Map();
+    const deliveredOrders = orders.filter(o => o && o.status === 'delivered');
+    
+    deliveredOrders.forEach(order => {
+      const orderDate = new Date(order.createdAt || order.orderDate || Date.now());
+      const dateKey = orderDate.toISOString().split('T')[0]; // YYYY-MM-DD format for proper sorting
+      const dateStr = orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      
+      if (!dateMap.has(dateKey)) {
+        dateMap.set(dateKey, { date: dateStr, dateKey, revenue: 0, orders: 0 });
+      }
+      const entry = dateMap.get(dateKey);
+      entry.revenue += parseFloat(order.total) || parseFloat(order.amount) || 0;
+      entry.orders += 1;
+    });
+
+    return Array.from(dateMap.values())
+      .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+      .map(({ dateKey, ...rest }) => rest); // Remove dateKey before returning
+  }, [orders]);
+
+  // Calculate order status distribution
+  const orderStatusData = useMemo(() => {
+    const statusCounts = {};
+    orders.forEach(order => {
+      if (order && order.status) {
+        statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
+      }
+    });
+
+    const statusColors = {
+      'pending': COLORS[2],
+      'preparing': COLORS[3],
+      'on-the-way': COLORS[1],
+      'delivered': COLORS[4],
+      'cancelled': COLORS[0],
+    };
+
+    return Object.entries(statusCounts).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1).replace('-', ' '),
+      value,
+      color: statusColors[name] || COLORS[0],
+    }));
+  }, [orders]);
+
+  // Calculate top products performance
+  const productPerformanceData = useMemo(() => {
+    const productMap = new Map();
+    
+    orders.forEach(order => {
+      if (order && order.items && Array.isArray(order.items)) {
+        order.items.forEach(item => {
+          const productName = item.product?.name || item.name || 'Unknown Product';
+          if (!productMap.has(productName)) {
+            productMap.set(productName, { name: productName, orders: 0, revenue: 0 });
+          }
+          const entry = productMap.get(productName);
+          entry.orders += item.quantity || 1;
+          entry.revenue += parseFloat(item.price) * (item.quantity || 1);
+        });
+      }
+    });
+
+    return Array.from(productMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10); // Top 10 products
+  }, [orders]);
 
   if (isLoading) {
     return (
