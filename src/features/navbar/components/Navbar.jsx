@@ -6,6 +6,7 @@ import UserMenuDropdown from "./UserMenuDropdown";
 import { USER_ROLES } from "../../../common/roleConstants";
 import { DASHBOARD_MENU_ITEMS } from "../../customer-dashboard/constants/menuItems";
 import { useAuth } from "../../../hooks/useAuth";
+import { getUser, isAuthenticated } from "../../../utils/tokenManager";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -23,12 +24,33 @@ const Navbar = () => {
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
   const [isAnyUserLoggedIn, setIsAnyUserLoggedIn] = useState(false);
 
+  // Update auth state when it changes
   useEffect(() => {
     setIsCustomerLoggedIn(
       isAuthenticated && userRole === USER_ROLES.CUSTOMER
     );
     setIsAnyUserLoggedIn(isAuthenticated && userRole); // Any authenticated user
   }, [isAuthenticated, userRole]);
+
+  // Listen for auth state changes from other components (like logout/login)
+  useEffect(() => {
+    const handleAuthStateChange = () => {
+      // Force re-check of auth state by reading directly from storage
+      // This ensures we get the latest state even if useAuth hasn't updated yet
+      const storedUser = getUser();
+      const hasToken = isAuthenticated();
+      const currentRole = normalizeRole(storedUser?.role);
+      
+      // Update state immediately based on storage
+      setIsAnyUserLoggedIn(hasToken && currentRole);
+      setIsCustomerLoggedIn(hasToken && currentRole === USER_ROLES.CUSTOMER);
+    };
+
+    window.addEventListener('authStateChanged', handleAuthStateChange);
+    return () => {
+      window.removeEventListener('authStateChanged', handleAuthStateChange);
+    };
+  }, []);
 
   const navLinks = [
     { path: "/", label: "Home" },

@@ -55,9 +55,17 @@ export const useAuth = () => {
 
     initializeAuth();
     
+    // Listen for auth state changes from other components (like logout)
+    const handleAuthStateChange = () => {
+      // Re-initialize auth state when notified of changes
+      initializeAuth();
+    };
+
+    window.addEventListener('authStateChanged', handleAuthStateChange);
+    
     // Cleanup on unmount
     return () => {
-      // Only disconnect on logout
+      window.removeEventListener('authStateChanged', handleAuthStateChange);
     };
   }, []);
 
@@ -120,6 +128,8 @@ export const useAuth = () => {
         if (token) {
           initializeSocket(token);
         }
+        // Dispatch custom event to notify all components of auth state change
+        window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { isAuthenticated: true, user: result.data.user } }));
         toast.success(result.message || 'Login successful');
         return result;
       } else {
@@ -144,6 +154,8 @@ export const useAuth = () => {
       await authService.logout();
       setUserState(null);
       setIsAuth(false);
+      // Dispatch custom event to notify all components of auth state change
+      window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { isAuthenticated: false, user: null } }));
       toast.success('Logged out successfully');
       navigate('/login');
     } catch (error) {
@@ -151,6 +163,8 @@ export const useAuth = () => {
       disconnectSocket();
       setUserState(null);
       setIsAuth(false);
+      // Dispatch custom event to notify all components of auth state change
+      window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { isAuthenticated: false, user: null } }));
       navigate('/login');
     } finally {
       setLoading(false);
