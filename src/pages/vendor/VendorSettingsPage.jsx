@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FiSettings, FiBell, FiShield, FiCreditCard, FiLock, FiX } from "react-icons/fi";
+import { FiSettings, FiBell, FiShield, FiCreditCard, FiLock, FiX, FiEdit } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
@@ -11,6 +11,7 @@ import { changePassword } from "../../services/userService";
 import { API_ENDPOINTS } from "../../api/config";
 
 const VendorSettingsPage = () => {
+  const [isEditing, setIsEditing] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -115,27 +116,18 @@ const VendorSettingsPage = () => {
   };
 
   const handleSave = async () => {
-    // Validate required fields
-    if (!settings.storeName.trim() || !settings.phone.trim() || !settings.email.trim()) {
+    // Validate required fields (email and phone are read-only, so we don't validate them)
+    if (!settings.storeName.trim() || !settings.address.trim()) {
       toast.error("Please fill in all required fields");
-      return;
-    }
-
-    // Validate email format
-    if (!/^[\w\.-]+@[\w\.-]+\.\w+$/.test(settings.email)) {
-      toast.error("Please enter a valid email address");
       return;
     }
 
     setIsSaving(true);
 
     try {
-      // Prepare profile data for API
+      // Prepare profile data for API (exclude email and phone as they are read-only)
       const profileData = {
         businessName: settings.storeName.trim(),
-        // description: settings.storeDescription.trim(),
-        phone: settings.phone.trim(),
-        email: settings.email.trim(),
         businessAddress: settings.address.trim(),
       };
 
@@ -150,6 +142,7 @@ const VendorSettingsPage = () => {
       // Refetch vendor profile to get updated data
       await refetch();
 
+      setIsEditing(false);
       toast.success("Settings saved successfully!");
     } catch (error) {
       console.error("Failed to save settings:", error);
@@ -157,6 +150,31 @@ const VendorSettingsPage = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCancel = () => {
+    // Reset to original values from API
+    if (vendorProfileData && !isLoading) {
+      let data = null;
+      
+      if (vendorProfileData?.data?.vendor) {
+        data = vendorProfileData.data.vendor;
+      } else if (vendorProfileData?.data && typeof vendorProfileData.data === 'object' && !Array.isArray(vendorProfileData.data)) {
+        data = vendorProfileData.data;
+      } else if (vendorProfileData?.vendor) {
+        data = vendorProfileData.vendor;
+      }
+      
+      if (data) {
+        const userIdData = data.userId || {};
+        setSettings(prev => ({
+          ...prev,
+          storeName: data.businessName || data.storeName || data.name || userIdData.name || "",
+          address: data.businessAddress || data.address || data.location || "",
+        }));
+      }
+    }
+    setIsEditing(false);
   };
 
   const handlePasswordChange = (e) => {
@@ -221,14 +239,31 @@ const VendorSettingsPage = () => {
               Configure your vendor account settings
             </p>
           </div>
-          <Button 
-            variant="primary" 
-            size="md" 
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? "Saving..." : "Save Changes"}
-          </Button>
+          {!isEditing ? (
+            <Button variant="secondary" size="md" onClick={() => setIsEditing(true)}>
+              <FiEdit className="w-5 h-5" />
+              Edit Settings
+            </Button>
+          ) : (
+            <div className="flex gap-3">
+              <Button 
+                variant="ghost" 
+                size="md" 
+                onClick={handleCancel}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                size="md" 
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Store Information */}
@@ -248,6 +283,7 @@ const VendorSettingsPage = () => {
               name="storeName"
               value={settings.storeName}
               onChange={handleChange}
+              disabled={!isEditing}
             />
             {/* <Input
               label="Store Description"
@@ -256,6 +292,7 @@ const VendorSettingsPage = () => {
               value={settings.storeDescription}
               onChange={handleChange}
               placeholder="Describe your store"
+              disabled={!isEditing}
             /> */}
             <Input
               label="Phone Number"
@@ -263,6 +300,7 @@ const VendorSettingsPage = () => {
               name="phone"
               value={settings.phone}
               onChange={handleChange}
+              disabled={true}
             />
             <Input
               label="Email"
@@ -270,6 +308,7 @@ const VendorSettingsPage = () => {
               name="email"
               value={settings.email}
               onChange={handleChange}
+              disabled={true}
             />
             <Input
               label="Address"
@@ -277,6 +316,7 @@ const VendorSettingsPage = () => {
               name="address"
               value={settings.address}
               onChange={handleChange}
+              disabled={!isEditing}
             />
           </div>
         </Card>

@@ -24,12 +24,21 @@ export const getVendorProfile = async () => {
 
 export const updateVendorProfile = async (profileData) => {
   try {
-    const response = await apiClient.patch(
+    // Try PUT first (more common for profile updates)
+    const response = await apiClient.put(
       `${API_ENDPOINTS.VENDORS}/profile`,
       profileData
     );
     return handleApiResponse(response);
   } catch (error) {
+    // If PUT fails with 404, provide a more helpful error message
+    if (error.response?.status === 404) {
+      const helpfulError = new Error(
+        'Profile update endpoint not found. Please ensure the backend has implemented PUT /vendors/profile endpoint.'
+      );
+      helpfulError.response = error.response;
+      throw helpfulError;
+    }
     throw handleApiError(error);
   }
 };
