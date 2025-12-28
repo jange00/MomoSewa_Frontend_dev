@@ -21,17 +21,18 @@ const VendorSettingsPage = () => {
   });
 
   // Fetch vendor profile from API
-  const { data: vendorProfileData, isLoading, refetch } = useGet(
+  const { data: vendorProfileData, isLoading, error: vendorError, refetch } = useGet(
     'vendor-profile-settings',
     `${API_ENDPOINTS.VENDORS}/profile`,
     { 
-      showErrorToast: true 
+      showErrorToast: false, // We'll handle errors manually
+      retry: 1,
     }
   );
 
   const [settings, setSettings] = useState({
     storeName: "",
-    storeDescription: "",
+    // storeDescription: "",
     phone: "",
     email: "",
     address: "",
@@ -42,31 +43,68 @@ const VendorSettingsPage = () => {
 
   // Update settings when vendor profile data loads
   useEffect(() => {
+    // Log error if present
+    if (vendorError) {
+      console.error('Error fetching vendor profile:', vendorError);
+      toast.error(vendorError.message || 'Failed to load vendor profile');
+      return;
+    }
+
     if (vendorProfileData && !isLoading) {
       // Log the full response to understand the structure
-      console.log('Full vendor profile response:', JSON.stringify(vendorProfileData, null, 2));
+      console.log('=== VENDOR PROFILE DATA DEBUG ===');
+      console.log('Full vendor profile response:', vendorProfileData);
+      console.log('Type of vendorProfileData:', typeof vendorProfileData);
+      console.log('Is array?', Array.isArray(vendorProfileData));
       
       // Try multiple paths to extract vendor data
-      const data = vendorProfileData?.data?.vendor || 
-                   vendorProfileData?.data || 
-                   vendorProfileData?.vendor ||
-                   vendorProfileData || {};
+      // The API response structure could be:
+      // 1. { success: true, data: { vendor: {...} } }
+      // 2. { success: true, data: {...} }
+      // 3. { vendor: {...} }
+      // 4. Direct vendor object
+      let data = null;
       
-      console.log('Using vendor data:', data);
-      console.log('Available fields:', Object.keys(data));
+      if (vendorProfileData?.data?.vendor) {
+        data = vendorProfileData.data.vendor;
+        console.log('Found data at: vendorProfileData.data.vendor');
+      } else if (vendorProfileData?.data && typeof vendorProfileData.data === 'object' && !Array.isArray(vendorProfileData.data)) {
+        data = vendorProfileData.data;
+        console.log('Found data at: vendorProfileData.data');
+      } else if (vendorProfileData?.vendor) {
+        data = vendorProfileData.vendor;
+        console.log('Found data at: vendorProfileData.vendor');
+      } else if (vendorProfileData && typeof vendorProfileData === 'object' && !Array.isArray(vendorProfileData) && vendorProfileData.email) {
+        // Direct vendor object (has email field)
+        data = vendorProfileData;
+        console.log('Found data as direct vendor object');
+      } else {
+        data = {};
+        console.log('No vendor data found, using empty object');
+      }
       
-      setSettings(prev => ({
-        storeName: data.businessName || data.storeName || data.name || prev.storeName || "",
-        storeDescription: data.description || data.storeDescription || data.bio || prev.storeDescription || "",
-        phone: data.phone || data.phoneNumber || prev.phone || "",
-        email: data.email || prev.email || "",
-        address: data.businessAddress || data.address || data.location || prev.address || "",
-        autoAcceptOrders: localStorage.getItem("autoAcceptOrders") === "true" || false,
-        emailNotifications: localStorage.getItem("emailNotifications") !== "false",
-        smsNotifications: localStorage.getItem("smsNotifications") === "true" || false,
-      }));
+      console.log('Extracted vendor data:', data);
+      console.log('Available fields in data:', Object.keys(data));
+      console.log('=== END DEBUG ===');
+      
+      // Only update if we have actual data
+      if (data && Object.keys(data).length > 0) {
+        // Extract userId data if it exists
+        const userIdData = data.userId || {};
+        
+        setSettings(prev => ({
+          storeName: data.businessName || data.storeName || data.name || userIdData.name || prev.storeName || "",
+          // storeDescription: data.description || data.storeDescription || data.bio || prev.storeDescription || "",
+          phone: userIdData.phone || data.phone || data.phoneNumber || prev.phone || "",
+          email: userIdData.email || data.email || prev.email || "",
+          address: data.businessAddress || data.address || data.location || prev.address || "",
+          autoAcceptOrders: localStorage.getItem("autoAcceptOrders") === "true" || false,
+          emailNotifications: localStorage.getItem("emailNotifications") !== "false",
+          smsNotifications: localStorage.getItem("smsNotifications") === "true" || false,
+        }));
+      }
     }
-  }, [vendorProfileData, isLoading]);
+  }, [vendorProfileData, isLoading, vendorError]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -95,7 +133,7 @@ const VendorSettingsPage = () => {
       // Prepare profile data for API
       const profileData = {
         businessName: settings.storeName.trim(),
-        description: settings.storeDescription.trim(),
+        // description: settings.storeDescription.trim(),
         phone: settings.phone.trim(),
         email: settings.email.trim(),
         businessAddress: settings.address.trim(),
@@ -211,14 +249,14 @@ const VendorSettingsPage = () => {
               value={settings.storeName}
               onChange={handleChange}
             />
-            <Input
+            {/* <Input
               label="Store Description"
               type="text"
               name="storeDescription"
               value={settings.storeDescription}
               onChange={handleChange}
               placeholder="Describe your store"
-            />
+            /> */}
             <Input
               label="Phone Number"
               type="tel"

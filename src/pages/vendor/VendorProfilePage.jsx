@@ -22,16 +22,14 @@ const VendorProfilePage = () => {
   const fileInputRef = useRef(null);
 
   // Fetch vendor profile from API
-  const { data: vendorProfileData, isLoading, refetch } = useGet(
+  const { data: vendorProfileData, isLoading, error: vendorError, refetch } = useGet(
     'vendor-profile',
     `${API_ENDPOINTS.VENDORS}/profile`,
     { 
-      showErrorToast: true 
+      showErrorToast: false, // We'll handle errors manually
+      retry: 1,
     }
   );
-
-  // Extract vendor data - handle different response structures
-  const vendorData = vendorProfileData?.data?.vendor || vendorProfileData?.data || {};
 
   const [formData, setFormData] = useState({
     name: "",
@@ -41,17 +39,54 @@ const VendorProfilePage = () => {
 
   // Update form data when vendor profile data loads
   useEffect(() => {
-    if (vendorProfileData && !isLoading && vendorData) {
-      console.log('Vendor profile data loaded (Profile Page):', vendorProfileData);
-      console.log('Extracted vendor data (Profile Page):', vendorData);
-      
-      setFormData({
-        name: vendorData.name || vendorData.businessName || vendorData.storeName || "",
-        email: vendorData.email || "",
-        phone: vendorData.phone || vendorData.phoneNumber || "",
-      });
+    // Log error if present
+    if (vendorError) {
+      console.error('Error fetching vendor profile (Profile Page):', vendorError);
+      toast.error(vendorError.message || 'Failed to load vendor profile');
+      return;
     }
-  }, [vendorProfileData, isLoading]);
+
+    if (vendorProfileData && !isLoading) {
+      console.log('=== VENDOR PROFILE DATA DEBUG (Profile Page) ===');
+      console.log('Full vendor profile response:', vendorProfileData);
+      
+      // Try multiple paths to extract vendor data
+      let vendorData = null;
+      
+      if (vendorProfileData?.data?.vendor) {
+        vendorData = vendorProfileData.data.vendor;
+        console.log('Found data at: vendorProfileData.data.vendor');
+      } else if (vendorProfileData?.data && typeof vendorProfileData.data === 'object' && !Array.isArray(vendorProfileData.data)) {
+        vendorData = vendorProfileData.data;
+        console.log('Found data at: vendorProfileData.data');
+      } else if (vendorProfileData?.vendor) {
+        vendorData = vendorProfileData.vendor;
+        console.log('Found data at: vendorProfileData.vendor');
+      } else if (vendorProfileData && typeof vendorProfileData === 'object' && !Array.isArray(vendorProfileData) && vendorProfileData.email) {
+        vendorData = vendorProfileData;
+        console.log('Found data as direct vendor object');
+      } else {
+        vendorData = {};
+        console.log('No vendor data found, using empty object');
+      }
+      
+      console.log('Extracted vendor data (Profile Page):', vendorData);
+      console.log('Available fields:', Object.keys(vendorData));
+      console.log('=== END DEBUG ===');
+      
+      // Only update if we have actual data
+      if (vendorData && Object.keys(vendorData).length > 0) {
+        // Extract userId data if it exists
+        const userIdData = vendorData.userId || {};
+        
+        setFormData({
+          name: userIdData.name || vendorData.name || vendorData.businessName || vendorData.storeName || "",
+          email: userIdData.email || vendorData.email || "",
+          phone: userIdData.phone || vendorData.phone || vendorData.phoneNumber || "",
+        });
+      }
+    }
+  }, [vendorProfileData, isLoading, vendorError]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
