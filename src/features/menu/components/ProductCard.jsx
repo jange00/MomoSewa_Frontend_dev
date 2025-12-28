@@ -1,8 +1,15 @@
-import { FiStar, FiShoppingCart, FiMapPin, FiShoppingBag } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { FiStar, FiShoppingCart, FiShoppingBag } from "react-icons/fi";
 import Button from "../../../ui/buttons/Button";
 import Card from "../../../ui/cards/Card";
+import apiClient from "../../../api/client";
+import { API_ENDPOINTS } from "../../../api/config";
+
+// Cache for vendor addresses to avoid multiple API calls
+const vendorAddressCache = new Map();
 
 const ProductCard = ({ product, onAddToCart }) => {
+  const [vendorAddress, setVendorAddress] = useState(null);
   // Get product image - check image, images array, or use emoji
   // Backend schema: image (String, default: null), images (Array of Strings, default: [])
   const getProductImage = () => {
@@ -112,14 +119,60 @@ const ProductCard = ({ product, onAddToCart }) => {
     // If vendorId is just an ID string, return null (no details)
     if (typeof vendor === 'string') return null;
     
-    // If vendor is an object with details
+    // Get main location - prioritize businessAddress (matches vendor profile field)
+    // Check all possible location fields, including fetched vendorAddress
+    const location = vendor.businessAddress || 
+                     vendor.address || 
+                     vendor.location ||
+                     vendor.businessLocation ||
+                     vendor.city ||
+                     vendor.area ||
+                     vendor.district ||
+                     vendorAddress; // Use fetched address if available
+    
     return {
-      name: vendor.storeName || vendor.businessName || vendor.name,
-      location: vendor.location || vendor.address || vendor.businessAddress || vendor.city,
+      name: vendor.storeName || vendor.businessName || vendor.name || vendor.vendorName,
+      location: location, // Will display with 📍 emoji if available
+      vendorId: vendor._id || vendor.id,
     };
   };
 
   const vendorInfo = getVendorInfo();
+
+  // Fetch vendor address if not available in product data
+  useEffect(() => {
+    if (!vendorInfo || vendorInfo.location || !vendorInfo.vendorId) return;
+    
+    const vendorId = vendorInfo.vendorId;
+    
+    // Check cache first
+    if (vendorAddressCache.has(vendorId)) {
+      setVendorAddress(vendorAddressCache.get(vendorId));
+      return;
+    }
+    
+    // Fetch vendor details to get businessAddress
+    const fetchVendorAddress = async () => {
+      try {
+        const response = await apiClient.get(`${API_ENDPOINTS.VENDORS}/${vendorId}`);
+        const vendorData = response?.data?.data?.vendor || response?.data?.data || response?.data?.vendor || response?.data;
+        const address = vendorData?.businessAddress || vendorData?.address || vendorData?.location;
+        
+        if (address) {
+          // Cache the address
+          vendorAddressCache.set(vendorId, address);
+          setVendorAddress(address);
+        }
+      } catch (error) {
+        // Silently fail - address just won't show
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to fetch vendor address:', error);
+        }
+      }
+    };
+    
+    fetchVendorAddress();
+  }, [vendorInfo]);
 
   // Debug logging (remove in production)
   if (process.env.NODE_ENV === 'development') {
@@ -199,8 +252,8 @@ const ProductCard = ({ product, onAddToCart }) => {
           </h3>
           
           {/* Vendor/Shop Info */}
-          {vendorInfo && (
-            <div className="mb-2 space-y-1 pb-2 border-b border-charcoal-grey/5">
+          {vendorInfo && (vendorInfo.name || vendorInfo.location) && (
+            <div className="mb-2 space-y-1.5 pb-2 border-b border-charcoal-grey/5">
               {vendorInfo.name && (
                 <div className="flex items-center gap-1.5 text-xs text-charcoal-grey/70">
                   <FiShoppingBag className="w-3 h-3 text-deep-maroon/70 flex-shrink-0" />
@@ -211,8 +264,8 @@ const ProductCard = ({ product, onAddToCart }) => {
               )}
               {vendorInfo.location && (
                 <div className="flex items-center gap-1.5 text-xs text-charcoal-grey/60">
-                  <FiMapPin className="w-3 h-3 text-charcoal-grey/50 flex-shrink-0" />
-                  <span className="line-clamp-1">
+                  <span className="text-base flex-shrink-0" role="img" aria-label="location">📍</span>
+                  <span className="line-clamp-1 flex-1">
                     {vendorInfo.location}
                   </span>
                 </div>
