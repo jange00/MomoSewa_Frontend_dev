@@ -160,14 +160,19 @@ const ProductCard = ({ product, onAddToCart }) => {
             {product.emoji && product.emoji.trim() ? product.emoji : "🥟"}
           </span>
           
-          {/* Category Badge */}
-          {product.category && (
-            <div className="absolute top-3 left-3">
+          {/* Category and Subcategory Badges */}
+          <div className="absolute top-3 left-3 flex flex-col gap-2">
+            {product.category && (
               <span className="px-3 py-1 rounded-full bg-deep-maroon/90 backdrop-blur-sm text-white text-xs font-semibold">
                 {product.category}
               </span>
-            </div>
-          )}
+            )}
+            {product.subcategory && (
+              <span className="px-3 py-1 rounded-full bg-golden-amber/90 backdrop-blur-sm text-white text-xs font-semibold">
+                {product.subcategory}
+              </span>
+            )}
+          </div>
 
           {/* Rating Badge */}
           <div className="absolute top-3 right-3">

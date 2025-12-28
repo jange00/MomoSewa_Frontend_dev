@@ -80,6 +80,20 @@ export const deleteProduct = async (productId) => {
 };
 
 /**
+ * Get subcategories for a specific category
+ * @param {string} category - Category name (e.g., "Steamed", "Fried")
+ * @returns {Promise<Object>} Subcategories response
+ */
+export const getSubcategories = async (category) => {
+  try {
+    const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/subcategories/${category}`);
+    return handleApiResponse(response);
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+/**
  * Upload product image
  * @param {File} file - Image file to upload
  * @returns {Promise<Object>} Upload response with image URL

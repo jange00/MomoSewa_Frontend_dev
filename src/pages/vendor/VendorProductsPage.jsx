@@ -13,7 +13,7 @@ import { useGet, usePost, useDelete } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
 import { PRODUCT_CATEGORIES, DEFAULT_CATEGORY, isValidCategory } from "../../common/productCategories";
-import { uploadProductImage } from "../../services/productService";
+import { uploadProductImage, getSubcategories } from "../../services/productService";
 
 const VendorProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -83,6 +83,7 @@ const VendorProductsPage = () => {
     price: "",
     originalPrice: "",
     category: DEFAULT_CATEGORY,
+    subcategory: "",
     stock: "-1", // -1 means unlimited (backend default)
     emoji: "🥟", // Backend default emoji
     imageUrl: "",
@@ -92,8 +93,72 @@ const VendorProductsPage = () => {
   const [newProductImagePreview, setNewProductImagePreview] = useState(null);
   const [editingProductImageFile, setEditingProductImageFile] = useState(null);
   const [editingProductImagePreview, setEditingProductImagePreview] = useState(null);
+  const [availableSubcategories, setAvailableSubcategories] = useState([]);
+  const [editingSubcategories, setEditingSubcategories] = useState([]);
+  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
+  const [loadingEditingSubcategories, setLoadingEditingSubcategories] = useState(false);
   const fileInputRef = useRef(null);
   const editFileInputRef = useRef(null);
+
+  // Fetch subcategories when new product category changes
+  useEffect(() => {
+    const fetchSubcategories = async () => {
+      if (!newProduct.category || newProduct.category === "all") {
+        setAvailableSubcategories([]);
+        setNewProduct(prev => ({ ...prev, subcategory: "" }));
+        return;
+      }
+
+      setLoadingSubcategories(true);
+      try {
+        const response = await getSubcategories(newProduct.category);
+        const subcategories = response?.data?.subcategories || [];
+        setAvailableSubcategories(subcategories);
+        // Reset subcategory if current one is not in the new list
+        if (newProduct.subcategory && !subcategories.includes(newProduct.subcategory)) {
+          setNewProduct(prev => ({ ...prev, subcategory: "" }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch subcategories:", error);
+        setAvailableSubcategories([]);
+        setNewProduct(prev => ({ ...prev, subcategory: "" }));
+      } finally {
+        setLoadingSubcategories(false);
+      }
+    };
+
+    fetchSubcategories();
+  }, [newProduct.category]);
+
+  // Fetch subcategories when editing product category changes
+  useEffect(() => {
+    const fetchEditingSubcategories = async () => {
+      if (!editingProduct?.category || editingProduct.category === "all") {
+        setEditingSubcategories([]);
+        return;
+      }
+
+      setLoadingEditingSubcategories(true);
+      try {
+        const response = await getSubcategories(editingProduct.category);
+        const subcategories = response?.data?.subcategories || [];
+        setEditingSubcategories(subcategories);
+        // Reset subcategory if current one is not in the new list
+        if (editingProduct.subcategory && !subcategories.includes(editingProduct.subcategory)) {
+          setEditingProduct(prev => ({ ...prev, subcategory: "" }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch subcategories:", error);
+        setEditingSubcategories([]);
+      } finally {
+        setLoadingEditingSubcategories(false);
+      }
+    };
+
+    if (editingProduct) {
+      fetchEditingSubcategories();
+    }
+  }, [editingProduct?.category]);
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -313,6 +378,9 @@ const VendorProductsPage = () => {
     if (newProduct.emoji && newProduct.emoji.trim()) {
       productFormData.append('emoji', newProduct.emoji.trim());
     }
+    if (newProduct.subcategory && newProduct.subcategory.trim()) {
+      productFormData.append('subcategory', newProduct.subcategory.trim());
+    }
     
     // Add image file (same field name as profile picture: 'image')
     if (newProductImageFile) {
@@ -446,6 +514,7 @@ const VendorProductsPage = () => {
       price: product.price ? product.price.toString() : "",
       originalPrice: product.originalPrice ? product.originalPrice.toString() : "",
       category: product.category || product.categoryName || DEFAULT_CATEGORY,
+      subcategory: product.subcategory || "",
       stock: stockValue,
       customStock: (stockValue === "custom" && product.stock !== undefined && product.stock !== null) ? product.stock.toString() : "",
       emoji: product.emoji || "🥟",
@@ -549,6 +618,9 @@ const VendorProductsPage = () => {
     if (editingProduct.emoji && editingProduct.emoji.trim()) {
       productData.emoji = editingProduct.emoji.trim();
     }
+    if (editingProduct.subcategory && editingProduct.subcategory.trim()) {
+      productData.subcategory = editingProduct.subcategory.trim();
+    }
     
     // Check if we need FormData (only if uploading a new image file)
     const hasNewImageFile = !!editingProductImageFile;
@@ -588,9 +660,9 @@ const VendorProductsPage = () => {
         }
         console.log('📤 Sending JSON data:', productData);
         response = await apiClient.put(
-          `${API_ENDPOINTS.PRODUCTS}/${id}`,
-          productData
-        );
+        `${API_ENDPOINTS.PRODUCTS}/${id}`,
+        productData
+      );
       }
       
       console.log('✅ Product update response:', response.data);
@@ -802,7 +874,7 @@ const VendorProductsPage = () => {
                 </label>
                 <select
                   value={newProduct.category}
-                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value, subcategory: "" })}
                   className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium"
                 >
                   {PRODUCT_CATEGORIES.map((cat) => (
@@ -811,6 +883,27 @@ const VendorProductsPage = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                  Subcategory
+                </label>
+                <select
+                  value={newProduct.subcategory}
+                  onChange={(e) => setNewProduct({ ...newProduct, subcategory: e.target.value })}
+                  disabled={!newProduct.category || newProduct.category === "all" || loadingSubcategories || availableSubcategories.length === 0}
+                  className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select subcategory (optional)</option>
+                  {availableSubcategories.map((subcat) => (
+                    <option key={subcat} value={subcat}>
+                      {subcat}
+                    </option>
+                  ))}
+                </select>
+                {loadingSubcategories && (
+                  <p className="text-xs text-charcoal-grey/50 mt-1">Loading subcategories...</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-charcoal-grey mb-2">
@@ -1253,7 +1346,10 @@ const VendorProductsPage = () => {
                       </label>
                       <select
                         value={editingProduct?.category || DEFAULT_CATEGORY}
-                        onChange={(e) => handleEditChange("category", e.target.value)}
+                        onChange={(e) => {
+                          handleEditChange("category", e.target.value);
+                          handleEditChange("subcategory", "");
+                        }}
                         className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium"
                       >
                         {PRODUCT_CATEGORIES.map((cat) => (
@@ -1262,6 +1358,27 @@ const VendorProductsPage = () => {
                           </option>
                         ))}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                        Subcategory
+                      </label>
+                      <select
+                        value={editingProduct?.subcategory || ""}
+                        onChange={(e) => handleEditChange("subcategory", e.target.value)}
+                        disabled={!editingProduct?.category || editingProduct.category === "all" || loadingEditingSubcategories || editingSubcategories.length === 0}
+                        className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">Select subcategory (optional)</option>
+                        {editingSubcategories.map((subcat) => (
+                          <option key={subcat} value={subcat}>
+                            {subcat}
+                          </option>
+                        ))}
+                      </select>
+                      {loadingEditingSubcategories && (
+                        <p className="text-xs text-charcoal-grey/50 mt-1">Loading subcategories...</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-charcoal-grey mb-2">

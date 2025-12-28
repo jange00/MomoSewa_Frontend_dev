@@ -21,6 +21,7 @@ const MenuPage = () => {
   const [viewMode, setViewMode] = useState("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: Infinity });
   const [minRating, setMinRating] = useState(0);
 
@@ -55,6 +56,12 @@ const MenuPage = () => {
   const categories = useMemo(() => {
     const uniqueCategories = [...new Set(products.map((p) => p.category || p.categoryName))];
     return uniqueCategories.sort();
+  }, [products]);
+
+  // Extract unique subcategories
+  const subcategories = useMemo(() => {
+    const uniqueSubcategories = [...new Set(products.map((p) => p.subcategory).filter(Boolean))];
+    return uniqueSubcategories.sort();
   }, [products]);
 
   // Filter products
@@ -99,6 +106,13 @@ const MenuPage = () => {
         }
       }
 
+      // Subcategory filter
+      if (selectedSubcategories.length > 0 && product.subcategory) {
+        if (!selectedSubcategories.includes(product.subcategory)) {
+          return false;
+        }
+      }
+
       // Price filter
       const productPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
       if (productPrice < priceRange.min || (priceRange.max !== Infinity && productPrice > priceRange.max)) {
@@ -113,13 +127,21 @@ const MenuPage = () => {
 
       return true;
     });
-  }, [products, searchQuery, selectedCategories, priceRange, minRating]);
+  }, [products, searchQuery, selectedCategories, selectedSubcategories, priceRange, minRating]);
 
   const handleToggleCategory = (category) => {
     setSelectedCategories((prev) =>
       prev.includes(category)
         ? prev.filter((c) => c !== category)
         : [...prev, category]
+    );
+  };
+
+  const handleToggleSubcategory = (subcategory) => {
+    setSelectedSubcategories((prev) =>
+      prev.includes(subcategory)
+        ? prev.filter((s) => s !== subcategory)
+        : [...prev, subcategory]
     );
   };
 
@@ -153,6 +175,7 @@ const MenuPage = () => {
 
   const clearAllFilters = () => {
     setSelectedCategories([]);
+    setSelectedSubcategories([]);
     setPriceRange({ min: 0, max: Infinity });
     setMinRating(0);
     setSearchQuery("");
@@ -160,6 +183,7 @@ const MenuPage = () => {
 
   const activeFiltersCount =
     selectedCategories.length +
+    selectedSubcategories.length +
     (priceRange.min > 0 || priceRange.max !== Infinity ? 1 : 0) +
     (minRating > 0 ? 1 : 0);
 
@@ -230,6 +254,36 @@ const MenuPage = () => {
               selectedCategories={selectedCategories}
               onToggleCategory={handleToggleCategory}
             />
+
+            {/* Subcategory Filter */}
+            {subcategories.length > 0 && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-charcoal-grey/10 p-5">
+                <h3 className="font-bold text-charcoal-grey mb-4">Subcategory</h3>
+                <div className="space-y-2">
+                  {subcategories.map((subcategory) => {
+                    const isSelected = selectedSubcategories.includes(subcategory);
+                    return (
+                      <button
+                        key={subcategory}
+                        onClick={() => handleToggleSubcategory(subcategory)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-200 ${
+                          isSelected
+                            ? "bg-deep-maroon/10 border-2 border-deep-maroon"
+                            : "bg-charcoal-grey/5 border-2 border-transparent hover:bg-charcoal-grey/10"
+                        }`}
+                      >
+                        <span className={`font-medium text-sm ${isSelected ? "text-deep-maroon" : "text-charcoal-grey"}`}>
+                          {subcategory}
+                        </span>
+                        {isSelected && (
+                          <FiX className="w-4 h-4 text-deep-maroon" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <PriceFilter priceRange={priceRange} onPriceChange={setPriceRange} />
 
