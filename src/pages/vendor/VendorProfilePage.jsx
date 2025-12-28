@@ -94,24 +94,18 @@ const VendorProfilePage = () => {
   };
 
   const handleSave = async () => {
-    // Validate form
-    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim()) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    if (!/^[\w\.-]+@[\w\.-]+\.\w+$/.test(formData.email)) {
-      toast.error("Please enter a valid email address");
+    // Validate form (email is read-only, so we don't validate it)
+    if (!formData.name.trim() || !formData.phone.trim()) {
+      toast.error("Please fill in all required fields");
       return;
     }
 
     setIsSaving(true);
 
     try {
-      // Update vendor profile via API
+      // Update vendor profile via API (exclude email as it is read-only)
       const profileData = {
         name: formData.name.trim(),
-        email: formData.email.trim(),
         phone: formData.phone.trim(),
       };
 
@@ -284,7 +278,7 @@ const VendorProfilePage = () => {
               value={formData.email}
               onChange={handleChange}
               icon={FiMail}
-              disabled={!isEditing}
+              disabled={true}
             />
             <Input
               label="Phone Number"
