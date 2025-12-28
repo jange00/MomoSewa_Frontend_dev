@@ -5,9 +5,9 @@ const Testimonials = () => {
   const testimonials = [
     {
       name: "Sushant Mahato",
-      role: "Customer",
+      role: "Admin",
       rating: 5,
-      text: "Love how I can customize my momo fillings and achar! The delivery is always fast and fresh.",
+      text: "Hey i am admin.",
       avatar: "👦",
     },
     {

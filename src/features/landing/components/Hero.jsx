@@ -1,6 +1,7 @@
 import { FiClock, FiMapPin, FiAward, FiCheck } from "react-icons/fi";
 import Button from "../../../ui/buttons/Button";
 import Badge from "../../../ui/badges/Badge";
+import { IMAGE_PATHS } from "../../../common/imageConstant";
 
 const Hero = () => {
   return (
@@ -8,7 +9,10 @@ const Hero = () => {
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-deep-maroon/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-golden-amber/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }}></div>
+        <div
+          className="absolute top-1/2 -left-40 w-96 h-96 bg-golden-amber/10 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "1s" }}
+        ></div>
         <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-deep-maroon/5 rounded-full blur-3xl"></div>
       </div>
 
@@ -23,27 +27,54 @@ const Hero = () => {
                 <div className="relative z-10 text-center space-y-4">
                   <div className="w-64 h-64 mx-auto rounded-full bg-gradient-to-br from-deep-maroon/20 via-golden-amber/15 to-deep-maroon/20 flex items-center justify-center shadow-2xl border-4 border-white">
                     <span className="text-7xl">🥟</span>
+                    {/* <div className="w-64 h-64 mx-auto rounded-full bg-gradient-to-br from-deep-maroon/20 via-golden-amber/15 to-deep-maroon/20 flex items-center justify-center shadow-2xl border-4 border-white"> */}
+                    {/* <img
+    src={IMAGE_PATHS.MOMO}
+    alt="Nepali Momo"
+    className="w-44 h-44 object-contain"
+  />
+</div> */}
                   </div>
                   <div className="space-y-1">
-                    <p className="text-charcoal-grey/50 text-sm">Add your momo image</p>
+                    {/* <p className="text-charcoal-grey/50 text-sm">Add your momo image</p> */}
                   </div>
                 </div>
 
                 {/* Floating Badges */}
-                <div className="absolute top-8 right-8 bg-white/95 backdrop-blur-md rounded-xl px-4 py-2.5 shadow-lg border border-charcoal-grey/10 z-20 animate-fade-in-up" style={{ animationDelay: "0.8s", animationFillMode: "forwards" }}>
+                <div
+                  className="absolute top-8 right-8 bg-white/95 backdrop-blur-md rounded-xl px-4 py-2.5 shadow-lg border border-charcoal-grey/10 z-20 animate-fade-in-up"
+                  style={{
+                    animationDelay: "0.8s",
+                    animationFillMode: "forwards",
+                  }}
+                >
                   <div className="flex items-center gap-2 mb-0.5">
                     <div className="w-2 h-2 rounded-full bg-golden-amber"></div>
-                    <span className="text-xs font-bold text-charcoal-grey">Fresh Daily</span>
+                    <span className="text-xs font-bold text-charcoal-grey">
+                      Fresh Daily
+                    </span>
                   </div>
-                  <p className="text-[10px] text-charcoal-grey/60">Made to order</p>
+                  <p className="text-[10px] text-charcoal-grey/60">
+                    Made to order
+                  </p>
                 </div>
 
-                <div className="absolute bottom-8 right-8 bg-white/95 backdrop-blur-md rounded-xl px-4 py-2.5 shadow-lg border border-charcoal-grey/10 z-20 animate-fade-in-up" style={{ animationDelay: "1s", animationFillMode: "forwards" }}>
+                <div
+                  className="absolute bottom-8 right-8 bg-white/95 backdrop-blur-md rounded-xl px-4 py-2.5 shadow-lg border border-charcoal-grey/10 z-20 animate-fade-in-up"
+                  style={{
+                    animationDelay: "1s",
+                    animationFillMode: "forwards",
+                  }}
+                >
                   <div className="flex items-center gap-2 mb-0.5">
                     <div className="w-2 h-2 rounded-full bg-deep-maroon"></div>
-                    <span className="text-xs font-bold text-charcoal-grey">Spice Level</span>
+                    <span className="text-xs font-bold text-charcoal-grey">
+                      Spice Level
+                    </span>
                   </div>
-                  <p className="text-[10px] text-charcoal-grey/60">Customizable</p>
+                  <p className="text-[10px] text-charcoal-grey/60">
+                    Customizable
+                  </p>
                 </div>
 
                 {/* Decorative Elements */}
@@ -74,30 +105,43 @@ const Hero = () => {
             </div>
 
             {/* Description */}
-            <div className="animate-fade-in-up" style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}>
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
+            >
               <p className="text-base lg:text-lg text-charcoal-grey/70 leading-relaxed max-w-lg">
-                Experience the taste of the Himalayas with our handcrafted momo, traditional thukpa, and authentic Nepali cuisine. Made with love, served with pride.
+                Experience the taste of the Himalayas with our handcrafted momo,
+                traditional thukpa, and authentic Nepali cuisine. Made with
+                love, served with pride.
               </p>
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-4 pt-4 animate-fade-in-up" style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}>
+            <div
+              className="flex flex-wrap gap-4 pt-4 animate-fade-in-up"
+              style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
+            >
               <Button variant="primary" size="md" to="/menu">
                 Order Now →
               </Button>
-              
+
               <Button variant="secondary" size="md" to="/menu">
                 View Menu
               </Button>
             </div>
 
             {/* Feature Highlights - Card Style */}
-            <div className="grid grid-cols-3 gap-4 pt-6 animate-fade-in-up" style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}>
+            <div
+              className="grid grid-cols-3 gap-4 pt-6 animate-fade-in-up"
+              style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
+            >
               <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-charcoal-grey/10 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <div className="w-12 h-12 rounded-xl bg-golden-amber/10 flex items-center justify-center mb-3 group-hover:bg-golden-amber/20 transition-colors">
                   <FiClock className="w-6 h-6 text-golden-amber" />
                 </div>
-                <h3 className="font-bold text-charcoal-grey text-sm mb-1">Fast Delivery</h3>
+                <h3 className="font-bold text-charcoal-grey text-sm mb-1">
+                  Fast Delivery
+                </h3>
                 <p className="text-xs text-charcoal-grey/60">30 mins</p>
               </div>
 
@@ -105,7 +149,9 @@ const Hero = () => {
                 <div className="w-12 h-12 rounded-xl bg-golden-amber/10 flex items-center justify-center mb-3 group-hover:bg-golden-amber/20 transition-colors">
                   <FiMapPin className="w-6 h-6 text-golden-amber" />
                 </div>
-                <h3 className="font-bold text-charcoal-grey text-sm mb-1">Wide Coverage</h3>
+                <h3 className="font-bold text-charcoal-grey text-sm mb-1">
+                  Wide Coverage
+                </h3>
                 <p className="text-xs text-charcoal-grey/60">Kathmandu</p>
               </div>
 
@@ -113,7 +159,9 @@ const Hero = () => {
                 <div className="w-12 h-12 rounded-xl bg-golden-amber/10 flex items-center justify-center mb-3 group-hover:bg-golden-amber/20 transition-colors">
                   <FiAward className="w-6 h-6 text-golden-amber" />
                 </div>
-                <h3 className="font-bold text-charcoal-grey text-sm mb-1">Premium</h3>
+                <h3 className="font-bold text-charcoal-grey text-sm mb-1">
+                  Premium
+                </h3>
                 <p className="text-xs text-charcoal-grey/60">Fresh</p>
               </div>
             </div>
