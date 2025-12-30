@@ -3,6 +3,7 @@ import OrdersHeader from "../../features/customer-dashboard/components/OrdersHea
 import OrdersTabs from "../../features/customer-dashboard/components/OrdersTabs";
 import OrdersGrid from "../../features/customer-dashboard/components/OrdersGrid";
 import OrdersStats from "../../features/customer-dashboard/components/OrdersStats";
+import { OrderCardSkeleton } from "../../ui/skeletons";
 import { useAuth } from "../../hooks/useAuth";
 import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
@@ -54,8 +55,13 @@ const CustomerOrdersPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <OrdersHeader />
+          <div className="grid gap-6">
+            <OrderCardSkeleton count={5} />
+          </div>
+        </div>
       </div>
     );
   }

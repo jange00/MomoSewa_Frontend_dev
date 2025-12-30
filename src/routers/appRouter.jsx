@@ -16,6 +16,8 @@ import { USER_ROLES } from "../common/roleConstants";
 import MenuPage from "../pages/MenuPage";
 import CartPage from "../pages/CartPage";
 import CheckoutPage from "../pages/CheckoutPage";
+import AboutPage from "../pages/AboutPage";
+import ContactPage from "../pages/ContactPage";
 
 // Customer Dashboard Pages
 import CustomerDashboardPage from "../pages/customer/CustomerDashboardPage";
@@ -86,6 +88,14 @@ export const router = createBrowserRouter([
       {
         path: "/menu",
         element: <MenuPage />,
+      },
+      {
+        path: "/about",
+        element: <AboutPage />,
+      },
+      {
+        path: "/contact",
+        element: <ContactPage />,
       },
       {
         path: "/forgot-password",

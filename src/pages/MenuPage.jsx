@@ -10,6 +10,7 @@ import ViewModeToggle from "../features/menu/components/ViewModeToggle";
 import SearchBar from "../ui/search/SearchBar";
 import EmptyState from "../ui/empty/EmptyState";
 import Button from "../ui/buttons/Button";
+import { ProductCardSkeleton } from "../ui/skeletons";
 import { useGet, usePost } from "../hooks/useApi";
 import { API_ENDPOINTS } from "../api/config";
 import { useAuth } from "../hooks/useAuth";
@@ -315,8 +316,8 @@ const MenuPage = () => {
 
             {/* Products Display */}
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+              <div className={viewMode === "grid" ? "grid sm:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+                <ProductCardSkeleton count={6} />
               </div>
             ) : filteredProducts.length > 0 ? (
               <div

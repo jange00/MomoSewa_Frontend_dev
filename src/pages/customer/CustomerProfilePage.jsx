@@ -5,6 +5,7 @@ import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
 import Input from "../../ui/inputs/Input";
 import PasswordChangeDialog from "../../ui/modals/PasswordChangeDialog";
+import { ProfileSkeleton } from "../../ui/skeletons";
 import { useAuth } from "../../hooks/useAuth";
 import { useGet, usePatch } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
@@ -400,8 +401,8 @@ const CustomerProfilePage = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+        <div className="max-w-4xl mx-auto">
+          <ProfileSkeleton />
         </div>
       </div>
     );

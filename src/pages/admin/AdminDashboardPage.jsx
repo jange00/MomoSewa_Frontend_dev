@@ -3,6 +3,7 @@ import DashboardStats from "../../features/admin-dashboard/components/DashboardS
 import DashboardQuickActions from "../../features/admin-dashboard/components/DashboardQuickActions";
 import DashboardRecentOrders from "../../features/admin-dashboard/components/DashboardRecentOrders";
 import Card from "../../ui/cards/Card";
+import { StatsCardSkeleton, OrderCardSkeleton, Skeleton } from "../../ui/skeletons";
 import { FiTrendingUp, FiActivity, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
 import { useAuth } from "../../hooks/useAuth";
 import { useGet } from "../../hooks/useApi";
@@ -50,8 +51,35 @@ const AdminDashboardPage = () => {
 
   if (analyticsLoading || ordersLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <DashboardWelcome userName={userName} />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <StatsCardSkeleton count={4} />
+          </div>
+          <DashboardQuickActions />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <div className="grid gap-6">
+                <OrderCardSkeleton count={5} />
+              </div>
+            </div>
+            <Card className="p-6">
+              <Skeleton variant="heading" className="mb-4 w-1/3" />
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-start gap-3 pb-4 border-b border-charcoal-grey/10">
+                    <Skeleton variant="avatar" className="w-8 h-8" />
+                    <div className="flex-1">
+                      <Skeleton variant="text" className="mb-1 w-3/4" />
+                      <Skeleton variant="text" className="w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     );
   }

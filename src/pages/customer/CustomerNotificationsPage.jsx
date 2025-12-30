@@ -3,6 +3,7 @@ import { FiBell, FiCheck } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
 import Badge from "../../ui/badges/Badge";
+import { NotificationSkeleton } from "../../ui/skeletons";
 import { useAuth } from "../../hooks/useAuth";
 import { useGet, usePatch } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
@@ -127,8 +128,8 @@ const CustomerNotificationsPage = () => {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+          <div className="grid gap-3">
+            <NotificationSkeleton count={5} />
           </div>
         )}
 

@@ -3,6 +3,7 @@ import DashboardStats from "../../features/customer-dashboard/components/Dashboa
 import DashboardQuickActions from "../../features/customer-dashboard/components/DashboardQuickActions";
 import DashboardRecentOrders from "../../features/customer-dashboard/components/DashboardRecentOrders";
 import DashboardOffers from "../../features/customer-dashboard/components/DashboardOffers";
+import { StatsCardSkeleton, OrderCardSkeleton } from "../../ui/skeletons";
 import { useAuth } from "../../hooks/useAuth";
 import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
@@ -41,8 +42,18 @@ const CustomerDashboardPage = () => {
 
   if (ordersLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <DashboardWelcome userName={userName} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StatsCardSkeleton count={3} />
+          </div>
+          <DashboardQuickActions />
+          <div className="grid gap-6">
+            <OrderCardSkeleton count={3} />
+          </div>
+          <DashboardOffers />
+        </div>
       </div>
     );
   }

@@ -45,6 +45,8 @@ export const API_ENDPOINTS = {
   PAYMENTS: '/payments',
   // Promo Codes
   PROMO_CODES: '/promo-codes',
+  // Contact
+  CONTACT: '/contact',
   // Health Check (outside v1 API)
   HEALTH: '/api/health',
 };

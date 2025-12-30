@@ -17,6 +17,7 @@ import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
 import Badge from "../../ui/badges/Badge";
 import ConfirmDialog from "../../ui/modals/ConfirmDialog";
+import { OrderCardSkeleton } from "../../ui/skeletons";
 import { useGet, usePost } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
@@ -111,10 +112,9 @@ const CustomerOrderDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon mx-auto mb-4"></div>
-          <p className="text-charcoal-grey/60">Loading order details...</p>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <OrderCardSkeleton count={1} />
         </div>
       </div>
     );

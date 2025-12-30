@@ -3,6 +3,7 @@ import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
 import { FiSearch, FiUser, FiMail, FiPhone, FiCalendar, FiDownload } from "react-icons/fi";
 import UserDetailModal from "../../features/admin-dashboard/modals/UserDetailModal";
+import { StatsCardSkeleton, Skeleton } from "../../ui/skeletons";
 import toast from "react-hot-toast";
 import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
@@ -33,8 +34,47 @@ const AdminUsersPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <Skeleton variant="title" className="mb-2 w-48" />
+              <Skeleton variant="text" className="w-64" />
+            </div>
+            <Skeleton variant="button" />
+          </div>
+          <Card className="p-6">
+            <Skeleton variant="text" className="w-full h-10 rounded-lg" />
+          </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <StatsCardSkeleton count={4} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Card key={i} className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton variant="avatar" className="w-12 h-12" />
+                    <div>
+                      <Skeleton variant="heading" className="mb-2 w-24" />
+                      <Skeleton variant="text" className="w-16 h-4" />
+                    </div>
+                  </div>
+                  <Skeleton variant="text" className="w-16 h-6 rounded-lg" />
+                </div>
+                <div className="space-y-2 mb-4">
+                  <Skeleton variant="text" className="w-full" />
+                  <Skeleton variant="text" className="w-3/4" />
+                  <Skeleton variant="text" className="w-1/2" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton variant="button" className="flex-1" />
+                  <Skeleton variant="button" className="flex-1" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

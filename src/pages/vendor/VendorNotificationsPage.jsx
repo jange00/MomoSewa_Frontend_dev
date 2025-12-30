@@ -3,6 +3,7 @@ import { FiBell, FiCheck } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
 import Badge from "../../ui/badges/Badge";
+import { NotificationSkeleton, Skeleton } from "../../ui/skeletons";
 import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import { useSocket } from "../../hooks/useSocket";
@@ -70,8 +71,19 @@ const VendorNotificationsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <Skeleton variant="title" className="mb-2 w-48" />
+              <Skeleton variant="text" className="w-64" />
+            </div>
+            <Skeleton variant="button" />
+          </div>
+          <div className="grid gap-6">
+            <NotificationSkeleton count={5} />
+          </div>
+        </div>
       </div>
     );
   }

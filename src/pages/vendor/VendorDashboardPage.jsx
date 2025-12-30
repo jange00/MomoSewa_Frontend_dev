@@ -2,6 +2,7 @@ import DashboardWelcome from "../../features/vendor-dashboard/components/Dashboa
 import DashboardStats from "../../features/vendor-dashboard/components/DashboardStats";
 import DashboardQuickActions from "../../features/vendor-dashboard/components/DashboardQuickActions";
 import DashboardRecentOrders from "../../features/vendor-dashboard/components/DashboardRecentOrders";
+import { StatsCardSkeleton, OrderCardSkeleton } from "../../ui/skeletons";
 import { useAuth } from "../../hooks/useAuth";
 import { useGet, usePatch } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
@@ -64,8 +65,17 @@ const VendorDashboardPage = () => {
 
   if (ordersLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <DashboardWelcome userName={userName} />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <StatsCardSkeleton count={4} />
+          </div>
+          <DashboardQuickActions />
+          <div className="grid gap-6">
+            <OrderCardSkeleton count={5} />
+          </div>
+        </div>
       </div>
     );
   }

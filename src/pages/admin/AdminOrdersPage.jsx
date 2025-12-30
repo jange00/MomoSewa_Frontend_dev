@@ -5,6 +5,7 @@ import OrdersGrid from "../../features/admin-dashboard/components/OrdersGrid";
 import OrdersStats from "../../features/admin-dashboard/components/OrdersStats";
 import VendorFilter from "../../features/admin-dashboard/components/VendorFilter";
 import Card from "../../ui/cards/Card";
+import { OrderCardSkeleton } from "../../ui/skeletons";
 import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 
@@ -120,8 +121,17 @@ const AdminOrdersPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <OrdersHeader
+            title="All Orders"
+            searchQuery=""
+            onSearchChange={() => {}}
+          />
+          <div className="grid gap-6">
+            <OrderCardSkeleton count={5} />
+          </div>
+        </div>
       </div>
     );
   }
