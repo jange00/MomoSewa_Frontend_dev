@@ -27,6 +27,60 @@ const VendorOrdersPage = () => {
   const orders = Array.isArray(ordersData?.data?.orders) ? ordersData.data.orders :
                  Array.isArray(ordersData?.data) ? ordersData.data : [];
 
+  // Fetch all products to enrich order items with product images
+  const { data: productsData } = useGet(
+    'products-for-vendor-orders',
+    API_ENDPOINTS.PRODUCTS,
+    { 
+      enabled: orders.length > 0, // Only fetch if we have orders
+      showErrorToast: false // Don't show error toast for this background fetch
+    }
+  );
+
+  const products = productsData?.data?.products || productsData?.data || [];
+
+  // Enrich orders with product images
+  const enrichedOrders = useMemo(() => {
+    if (!products.length) return orders;
+    
+    return orders.map(order => {
+      if (!order.items || !Array.isArray(order.items)) return order;
+      
+      const enrichedItems = order.items.map(item => {
+        // Get productId - handle both object and string formats
+        const productId = item.productId?._id || item.productId?.id || item.productId;
+        
+        // Find the matching product
+        const product = products.find(p => 
+          p._id === productId || p.id === productId
+        );
+        
+        if (product) {
+          return {
+            ...item,
+            // Add product data for image lookup
+            product: {
+              ...product,
+              name: item.name || product.name,
+              price: item.price !== undefined ? item.price : product.price,
+            },
+            // Add image directly on item for easier access
+            image: product.image || (product.images && product.images[0]) || item.image || null,
+            images: product.images || item.images || [],
+            emoji: product.emoji || item.emoji || "🥟"
+          };
+        }
+        
+        return item;
+      });
+      
+      return {
+        ...order,
+        items: enrichedItems
+      };
+    });
+  }, [orders, products]);
+
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
 
@@ -61,8 +115,8 @@ const VendorOrdersPage = () => {
 
   const filteredOrders = useMemo(() => {
     let filtered = activeTab === "all"
-      ? orders
-      : orders.filter((order) => order.status === activeTab);
+      ? enrichedOrders
+      : enrichedOrders.filter((order) => order.status === activeTab);
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -82,11 +136,11 @@ const VendorOrdersPage = () => {
     }
 
     return filtered;
-  }, [activeTab, orders, searchQuery]);
+  }, [activeTab, enrichedOrders, searchQuery]);
 
   const ordersCount = useMemo(() => {
     const counts = {
-      total: orders.length,
+      total: enrichedOrders.length,
       pending: 0,
       preparing: 0,
       "on-the-way": 0,
@@ -94,14 +148,14 @@ const VendorOrdersPage = () => {
       cancelled: 0,
     };
 
-    orders.forEach((order) => {
+    enrichedOrders.forEach((order) => {
       if (counts.hasOwnProperty(order.status)) {
         counts[order.status]++;
       }
     });
 
     return counts;
-  }, [orders]);
+  }, [enrichedOrders]);
 
   if (isLoading) {
     return (
@@ -156,7 +210,7 @@ const VendorOrdersPage = () => {
           ordersCount={ordersCount}
         />
         <OrdersGrid orders={filteredOrders} onStatusUpdate={handleStatusUpdate} />
-        <OrdersStats orders={orders} />
+        <OrdersStats orders={enrichedOrders} />
       </div>
     </div>
   );

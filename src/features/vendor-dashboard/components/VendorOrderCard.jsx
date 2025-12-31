@@ -5,6 +5,66 @@ import ConfirmDialog from "../../../ui/modals/ConfirmDialog";
 import { FiClock, FiUser, FiPhone, FiMapPin, FiCheck, FiX, FiPackage, FiTruck } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
+// Component for individual order item with image
+const OrderItemPreview = ({ item }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Get product image from various possible locations
+  const getItemImage = () => {
+    // Check item.image first
+    if (item.image && typeof item.image === 'string' && item.image.trim() && item.image !== 'null') {
+      const trimmed = item.image.trim();
+      if (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+        return trimmed;
+      }
+    }
+    
+    // Check item.product.image
+    if (item.product?.image && typeof item.product.image === 'string' && item.product.image.trim() && item.product.image !== 'null') {
+      const trimmed = item.product.image.trim();
+      if (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+        return trimmed;
+      }
+    }
+    
+    // Check item.product.images array
+    if (item.product?.images && Array.isArray(item.product.images) && item.product.images.length > 0) {
+      const validImage = item.product.images.find(img => {
+        if (!img || typeof img !== 'string') return false;
+        const trimmed = img.trim();
+        return trimmed && trimmed !== 'null' && (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/'));
+      });
+      if (validImage) return validImage.trim();
+    }
+    
+    return null;
+  };
+  
+  const itemImage = getItemImage();
+  const itemEmoji = item.emoji || item.product?.emoji || "🥟";
+  
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex-shrink-0 border border-charcoal-grey/10 relative">
+        {itemImage && !imageError ? (
+          <img
+            src={itemImage}
+            alt={item.name || 'Product'}
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <span className="text-xl">{itemEmoji}</span>
+        )}
+      </div>
+      <span className="flex-1 text-charcoal-grey/80">
+        {item.quantity}x {item.name}
+      </span>
+      <span className="text-charcoal-grey/60">Rs. {item.price}</span>
+    </div>
+  );
+};
+
 const VendorOrderCard = ({ order, onStatusUpdate }) => {
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -117,13 +177,7 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
       {/* Order Items Preview */}
       <div className="mb-4 space-y-2 pb-4 border-b border-charcoal-grey/10">
         {order.items?.slice(0, 3).map((item, index) => (
-          <div key={index} className="flex items-center gap-3 text-sm">
-            <span className="text-xl">{item.emoji || "🥟"}</span>
-            <span className="flex-1 text-charcoal-grey/80">
-              {item.quantity}x {item.name}
-            </span>
-            <span className="text-charcoal-grey/60">Rs. {item.price}</span>
-          </div>
+          <OrderItemPreview key={index} item={item} />
         ))}
         {order.items?.length > 3 && (
           <p className="text-xs text-charcoal-grey/60 text-center">
