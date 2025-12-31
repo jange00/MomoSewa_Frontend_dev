@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { FiStar, FiShoppingCart, FiShoppingBag } from "react-icons/fi";
 import Button from "../../../ui/buttons/Button";
 import Card from "../../../ui/cards/Card";
@@ -10,6 +10,7 @@ const vendorAddressCache = new Map();
 
 const ProductCard = ({ product, onAddToCart }) => {
   const [vendorAddress, setVendorAddress] = useState(null);
+  const fetchingRef = useRef(new Set()); // Track which vendor IDs are currently being fetched
   // Get product image - check image, images array, or use emoji
   // Backend schema: image (String, default: null), images (Array of Strings, default: [])
   const getProductImage = () => {
@@ -111,8 +112,22 @@ const ProductCard = ({ product, onAddToCart }) => {
   const reviewCount = getReviewCount();
   const available = isProductAvailable();
 
+  // Debug: Log product availability and handler
+  useEffect(() => {
+    console.log("ProductCard rendered:", {
+      productName: product.name,
+      productId: product._id || product.id,
+      available,
+      isAvailable: product.isAvailable,
+      stock: product.stock,
+      hasOnAddToCart: !!onAddToCart,
+      onAddToCartType: typeof onAddToCart
+    });
+  }, [product, available, onAddToCart]);
+
   // Get vendor information - check both vendor and vendorId (which might be populated)
-  const getVendorInfo = () => {
+  // Memoize to prevent unnecessary re-renders and API calls
+  const vendorInfo = useMemo(() => {
     const vendor = product.vendor || product.vendorId;
     if (!vendor) return null;
     
@@ -135,9 +150,7 @@ const ProductCard = ({ product, onAddToCart }) => {
       location: location, // Will display with 📍 emoji if available
       vendorId: vendor._id || vendor.id,
     };
-  };
-
-  const vendorInfo = getVendorInfo();
+  }, [product.vendor, product.vendorId, vendorAddress]);
 
   // Fetch vendor address if not available in product data
   useEffect(() => {
@@ -147,13 +160,27 @@ const ProductCard = ({ product, onAddToCart }) => {
     
     // Check cache first
     if (vendorAddressCache.has(vendorId)) {
-      setVendorAddress(vendorAddressCache.get(vendorId));
+      const cachedAddress = vendorAddressCache.get(vendorId);
+      if (cachedAddress !== vendorAddress) {
+        setVendorAddress(cachedAddress);
+      }
       return;
     }
+    
+    // Prevent duplicate API calls - check if we're already fetching this vendor
+    if (fetchingRef.current.has(vendorId)) {
+      return;
+    }
+    
+    // Mark as fetching
+    fetchingRef.current.add(vendorId);
     
     // Fetch vendor details to get businessAddress
     const fetchVendorAddress = async () => {
       try {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[ProductCard] Fetching vendor address for vendorId: ${vendorId}`);
+        }
         const response = await apiClient.get(`${API_ENDPOINTS.VENDORS}/${vendorId}`);
         const vendorData = response?.data?.data?.vendor || response?.data?.data || response?.data?.vendor || response?.data;
         const address = vendorData?.businessAddress || vendorData?.address || vendorData?.location;
@@ -162,17 +189,24 @@ const ProductCard = ({ product, onAddToCart }) => {
           // Cache the address
           vendorAddressCache.set(vendorId, address);
           setVendorAddress(address);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[ProductCard] Cached vendor address for vendorId: ${vendorId}`);
+          }
         }
       } catch (error) {
         // Silently fail - address just won't show
         if (process.env.NODE_ENV === 'development') {
-          console.warn('Failed to fetch vendor address:', error);
+          console.warn(`[ProductCard] Failed to fetch vendor address for vendorId ${vendorId}:`, error);
         }
+      } finally {
+        // Remove from fetching set when done
+        fetchingRef.current.delete(vendorId);
       }
     };
     
     fetchVendorAddress();
-  }, [vendorInfo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendorInfo?.vendorId]); // Only depend on vendorId, not the whole vendorInfo object
 
   // Debug logging (remove in production)
   if (process.env.NODE_ENV === 'development') {
@@ -315,7 +349,16 @@ const ProductCard = ({ product, onAddToCart }) => {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => onAddToCart && onAddToCart(product)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("Add to cart button clicked for product:", product);
+                if (onAddToCart) {
+                  onAddToCart(product);
+                } else {
+                  console.warn("onAddToCart handler not provided");
+                }
+              }}
               className="flex-shrink-0"
               disabled={!available}
             >

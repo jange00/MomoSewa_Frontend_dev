@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { FiArrowLeft, FiCheckCircle } from "react-icons/fi";
@@ -19,7 +19,55 @@ const CheckoutPage = () => {
     { showErrorToast: true }
   );
 
-  const cartItems = cartData?.data?.items || cartData?.data || [];
+  // Fetch all products to enrich cart items with product data
+  const { data: productsData } = useGet(
+    'products',
+    API_ENDPOINTS.PRODUCTS,
+    { 
+      showErrorToast: false,
+      enabled: cartData?.data?.cart?.items?.length > 0
+    }
+  );
+
+  const products = productsData?.data?.products || productsData?.data || [];
+
+  // Backend returns: { success: true, data: { cart: { items: [], promoCode: null } } }
+  const rawCartItems = Array.isArray(cartData?.data?.cart?.items) 
+    ? cartData.data.cart.items 
+    : Array.isArray(cartData?.data?.items) 
+    ? cartData.data.items 
+    : Array.isArray(cartData?.data) 
+    ? cartData.data 
+    : [];
+
+  // Enrich cart items with product data
+  const cartItems = useMemo(() => {
+    if (!rawCartItems.length || !products.length) return rawCartItems;
+    
+    return rawCartItems.map(cartItem => {
+      const product = products.find(p => 
+        (p._id === cartItem.productId) || (p.id === cartItem.productId)
+      );
+      
+      if (product) {
+        return {
+          ...cartItem,
+          name: product.name,
+          price: product.price,
+          image: product.image || (product.images && product.images[0]) || null,
+          description: product.description,
+          productId: cartItem.productId,
+          variant: cartItem.variant,
+          quantity: cartItem.quantity || 1,
+        };
+      }
+      
+      return {
+        ...cartItem,
+        quantity: cartItem.quantity || 1,
+      };
+    });
+  }, [rawCartItems, products]);
 
   // Create order mutation
   const createOrderMutation = usePost('orders', API_ENDPOINTS.ORDERS, {
@@ -38,13 +86,17 @@ const CheckoutPage = () => {
     instructions: "",
   });
 
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + (item.price || item.product?.price || 0) * (item.quantity || 1),
-    0
-  );
-  const deliveryFee = subtotal > 500 ? 0 : 50;
+  const subtotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => {
+      const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
+      const quantity = item.quantity || 1;
+      return sum + (price * quantity);
+    }, 0);
+  }, [cartItems]);
+  
+  const deliveryFee = useMemo(() => subtotal > 500 ? 0 : 50, [subtotal]);
   const discount = 0; // Can be passed from cart if promo was applied
-  const total = subtotal + deliveryFee - discount;
+  const total = useMemo(() => subtotal + deliveryFee - discount, [subtotal, deliveryFee]);
 
   if (cartLoading) {
     return (

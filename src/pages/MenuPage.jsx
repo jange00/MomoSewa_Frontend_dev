@@ -12,12 +12,15 @@ import EmptyState from "../ui/empty/EmptyState";
 import Button from "../ui/buttons/Button";
 import { ProductCardSkeleton } from "../ui/skeletons";
 import { useGet, usePost } from "../hooks/useApi";
+import { useQueryClient } from "@tanstack/react-query";
 import { API_ENDPOINTS } from "../api/config";
 import { useAuth } from "../hooks/useAuth";
+import { USER_ROLES } from "../common/roleConstants";
 
 const MenuPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
+  const queryClient = useQueryClient();
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,6 +54,18 @@ const MenuPage = () => {
   const addToCartMutation = usePost('cart', API_ENDPOINTS.CART, {
     showSuccessToast: true,
     showErrorToast: true,
+    onSuccess: (data) => {
+      console.log("Add to cart success - Full response:", data);
+      console.log("Add to cart success - Cart data:", data?.data);
+      // Invalidate and refetch cart query
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      // Dispatch event to notify other components to refetch cart
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
+    },
+    onError: (error) => {
+      console.error("Add to cart mutation error:", error);
+      console.error("Add to cart error - Full error object:", JSON.stringify(error, null, 2));
+    }
   });
 
   // Extract unique categories
@@ -147,29 +162,59 @@ const MenuPage = () => {
   };
 
   const handleAddToCart = async (product) => {
+    console.log("handleAddToCart called with product:", product);
+    
     // Check if user is authenticated
     if (!isAuthenticated) {
+      console.log("User not authenticated");
       toast.error("Please login to add items to cart");
       navigate("/login");
       return;
     }
 
     // Check if user is a customer (vendors/admins shouldn't add to cart)
-    if (user?.role && user.role !== "customer") {
+    if (user?.role && user.role !== USER_ROLES.CUSTOMER) {
       toast.error("Only customers can add items to cart");
       return;
     }
 
+    // Validate product has an ID
+    const productId = product._id || product.id;
+    if (!productId) {
+      console.error("Product missing ID:", product);
+      toast.error("Product information is invalid. Please try again.");
+      return;
+    }
+
     try {
-      await addToCartMutation.mutateAsync({
-        productId: product._id || product.id,
+      console.log("Adding to cart:", { productId, quantity: 1, product });
+      const result = await addToCartMutation.mutateAsync({
+        productId: productId,
         quantity: 1,
       });
+      console.log("Add to cart result:", result);
+      
+      // Dispatch event to notify other components (like Navbar) to refetch cart
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
     } catch (error) {
       console.error("Failed to add to cart:", error);
-      // Error toast is already shown by usePost hook
+      console.error("Error details:", {
+        message: error.message,
+        status: error.status,
+        response: error.response?.data,
+        fullError: error
+      });
+      // Error toast is already shown by usePost hook, but add more specific error
       if (error.status === 403) {
         toast.error("Access denied. Please login as a customer to add items to cart.");
+      } else if (error.status === 401) {
+        toast.error("Please login to add items to cart");
+        navigate("/login");
+      } else {
+        // Additional error message if not already shown
+        if (!error.response?.data?.message) {
+          toast.error("Failed to add item to cart. Please try again.");
+        }
       }
     }
   };
@@ -333,6 +378,12 @@ const MenuPage = () => {
                     console.warn('Invalid product:', product);
                     return null;
                   }
+                  console.log("Rendering ProductCard with:", {
+                    productId: product._id || product.id,
+                    productName: product.name,
+                    hasHandler: !!handleAddToCart,
+                    handlerType: typeof handleAddToCart
+                  });
                   return (
                     <ProductCard
                       key={product._id || product.id}

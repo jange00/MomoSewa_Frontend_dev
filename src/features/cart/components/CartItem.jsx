@@ -69,14 +69,32 @@ const CartItem = ({ item, itemIndex, onQuantityChange, onRemove }) => {
 
               {/* Price */}
               <div>
-                <p className="text-lg font-bold text-deep-maroon">
-                  Rs. {(item.price * item.quantity).toFixed(2)}
-                </p>
-                {item.quantity > 1 && (
-                  <p className="text-xs text-charcoal-grey/50">
-                    Rs. {item.price.toFixed(2)} each
-                  </p>
-                )}
+                {(() => {
+                  const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
+                  const quantity = item.quantity || 1;
+                  const totalPrice = price * quantity;
+                  
+                  if (price === 0 || isNaN(price)) {
+                    return (
+                      <p className="text-lg font-bold text-charcoal-grey/50">
+                        Price unavailable
+                      </p>
+                    );
+                  }
+                  
+                  return (
+                    <>
+                      <p className="text-lg font-bold text-deep-maroon">
+                        Rs. {totalPrice.toFixed(2)}
+                      </p>
+                      {quantity > 1 && (
+                        <p className="text-xs text-charcoal-grey/50">
+                          Rs. {price.toFixed(2)} each
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
 

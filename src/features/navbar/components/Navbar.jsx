@@ -7,6 +7,8 @@ import { USER_ROLES } from "../../../common/roleConstants";
 import { DASHBOARD_MENU_ITEMS } from "../../customer-dashboard/constants/menuItems";
 import { useAuth } from "../../../hooks/useAuth";
 import { getUser, isAuthenticated } from "../../../utils/tokenManager";
+import { useGet } from "../../../hooks/useApi";
+import { API_ENDPOINTS } from "../../../api/config";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -23,6 +25,42 @@ const Navbar = () => {
   const userRole = normalizeRole(user?.role);
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
   const [isAnyUserLoggedIn, setIsAnyUserLoggedIn] = useState(false);
+
+  // Fetch cart data for customers
+  const { data: cartData, refetch: refetchCart } = useGet(
+    'cart',
+    API_ENDPOINTS.CART,
+    { 
+      showErrorToast: false,
+      enabled: isAuthenticated && userRole === USER_ROLES.CUSTOMER
+    }
+  );
+
+  // Listen for cart updates
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      if (isAuthenticated && userRole === USER_ROLES.CUSTOMER) {
+        refetchCart();
+      }
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
+  }, [isAuthenticated, userRole, refetchCart]);
+
+  // Calculate cart item count
+  // Backend returns: { success: true, data: { cart: { items: [], promoCode: null } } }
+  const cartItems = Array.isArray(cartData?.data?.cart?.items) 
+    ? cartData.data.cart.items 
+    : Array.isArray(cartData?.data?.items) 
+    ? cartData.data.items 
+    : Array.isArray(cartData?.data) 
+    ? cartData.data 
+    : [];
+  
+  const cartItemCount = cartItems.length;
 
   // Update auth state when it changes
   useEffect(() => {
@@ -126,9 +164,11 @@ const Navbar = () => {
               aria-label="Shopping Cart"
             >
               <FiShoppingCart className="w-6 h-6 text-charcoal-grey/80 group-hover:text-deep-maroon transition-colors duration-300" />
-              <span className="absolute -top-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-deep-maroon to-[#6a1f2d] text-white text-[11px] font-bold shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300 ring-2 ring-white">
-                1
-              </span>
+              {isCustomerLoggedIn && cartItemCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-deep-maroon to-[#6a1f2d] text-white text-[11px] font-bold shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300 ring-2 ring-white">
+                  {cartItemCount > 9 ? "9+" : cartItemCount}
+                </span>
+              )}
             </Link>
 
             {/* Divider */}
