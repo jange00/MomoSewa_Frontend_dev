@@ -25,3 +25,4 @@ const TableSkeleton = ({ rows = 5, columns = 4 }) => {
 export default TableSkeleton;
 
 
+
