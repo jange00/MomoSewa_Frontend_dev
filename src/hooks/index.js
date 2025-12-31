@@ -4,3 +4,4 @@
 export { useAuth } from './useAuth';
 export { useGet, usePost, usePut, usePatch, useDelete, useApiCall } from './useApi';
 export { useSocket } from './useSocket';
+export { useDeliveryFee } from './useDeliveryFee';

@@ -11,6 +11,7 @@ import { API_ENDPOINTS } from "../api/config";
 import apiClient from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 import { USER_ROLES } from "../common/roleConstants";
+import { useDeliveryFee } from "../hooks/useDeliveryFee";
 
 const CartPage = () => {
   const navigate = useNavigate();
@@ -197,6 +198,9 @@ const CartPage = () => {
     }
   };
 
+  // Fetch delivery fee settings
+  const { calculateDeliveryFee, getAmountNeededForFreeDelivery } = useDeliveryFee();
+
   // Calculate subtotal and delivery fee (MUST be before any early returns to follow Rules of Hooks)
   const subtotal = useMemo(() => {
     if (!Array.isArray(cartItems)) return 0;
@@ -207,7 +211,15 @@ const CartPage = () => {
     }, 0);
   }, [cartItems]);
 
-  const deliveryFee = useMemo(() => subtotal > 500 ? 0 : 50, [subtotal]); // Free delivery above Rs. 500
+  // Calculate delivery fee using backend settings (uses subtotal - discount)
+  const deliveryFee = useMemo(() => {
+    return calculateDeliveryFee(subtotal, promoDiscount);
+  }, [subtotal, promoDiscount, calculateDeliveryFee]);
+
+  // Get amount needed for free delivery
+  const amountNeededForFreeDelivery = useMemo(() => {
+    return getAmountNeededForFreeDelivery(subtotal, promoDiscount);
+  }, [subtotal, promoDiscount, getAmountNeededForFreeDelivery]);
 
   // Show loading state while checking auth or loading cart
   if (authLoading || isLoading) {
@@ -294,6 +306,7 @@ const CartPage = () => {
               subtotal={subtotal}
               discount={promoDiscount}
               deliveryFee={deliveryFee}
+              amountNeededForFreeDelivery={amountNeededForFreeDelivery}
             />
 
             {/* Checkout Button */}

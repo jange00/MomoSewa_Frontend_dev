@@ -10,6 +10,7 @@ import { useGet, usePost } from "../hooks/useApi";
 import { API_ENDPOINTS } from "../api/config";
 import { useAuth } from "../hooks/useAuth";
 import { USER_ROLES } from "../common/roleConstants";
+import { useDeliveryFee } from "../hooks/useDeliveryFee";
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -90,6 +91,9 @@ const CheckoutPage = () => {
   });
   const [selectedAddressId, setSelectedAddressId] = useState(null);
 
+  // Fetch delivery fee settings
+  const { calculateDeliveryFee, getAmountNeededForFreeDelivery } = useDeliveryFee();
+
   const subtotal = useMemo(() => {
     return cartItems.reduce((sum, item) => {
       const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
@@ -98,9 +102,19 @@ const CheckoutPage = () => {
     }, 0);
   }, [cartItems]);
   
-  const deliveryFee = useMemo(() => subtotal > 500 ? 0 : 50, [subtotal]);
   const discount = 0; // Can be passed from cart if promo was applied
-  const total = useMemo(() => subtotal + deliveryFee - discount, [subtotal, deliveryFee]);
+  
+  // Calculate delivery fee using backend settings (uses subtotal - discount)
+  const deliveryFee = useMemo(() => {
+    return calculateDeliveryFee(subtotal, discount);
+  }, [subtotal, discount, calculateDeliveryFee]);
+
+  // Get amount needed for free delivery
+  const amountNeededForFreeDelivery = useMemo(() => {
+    return getAmountNeededForFreeDelivery(subtotal, discount);
+  }, [subtotal, discount, getAmountNeededForFreeDelivery]);
+  
+  const total = useMemo(() => subtotal + deliveryFee - discount, [subtotal, deliveryFee, discount]);
 
   // Validate delivery address - either a saved address must be selected OR all required fields must be filled
   // MUST be before any early returns to follow Rules of Hooks
@@ -278,6 +292,7 @@ const CheckoutPage = () => {
               subtotal={subtotal}
               discount={discount}
               deliveryFee={deliveryFee}
+              amountNeededForFreeDelivery={amountNeededForFreeDelivery}
             />
 
             {/* Place Order Button */}
