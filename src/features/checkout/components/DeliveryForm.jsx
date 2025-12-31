@@ -5,15 +5,29 @@ import MapLocationPicker from "./MapLocationPicker";
 import SavedAddresses from "./SavedAddresses";
 import Button from "../../../ui/buttons/Button";
 
-const DeliveryForm = ({ formData, onChange }) => {
+const DeliveryForm = ({ formData, onChange, selectedAddressId: externalSelectedAddressId, onAddressSelect }) => {
   const [showMap, setShowMap] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [internalSelectedAddressId, setInternalSelectedAddressId] = useState(null);
+  
+  // Use external selectedAddressId if provided, otherwise use internal state
+  const selectedAddressId = externalSelectedAddressId !== undefined ? externalSelectedAddressId : internalSelectedAddressId;
+  
+  const setSelectedAddressId = (id) => {
+    if (onAddressSelect) {
+      onAddressSelect(id);
+    } else {
+      setInternalSelectedAddressId(id);
+    }
+  };
 
 
   const handleChange = (field, value) => {
     onChange({ ...formData, [field]: value });
-    setSelectedAddressId(null); // Clear selection when user manually edits
+    // Clear selection when user manually edits
+    if (selectedAddressId) {
+      setSelectedAddressId(null);
+    }
   };
 
   const handleLocationSelect = (locationData) => {
@@ -65,7 +79,14 @@ const DeliveryForm = ({ formData, onChange }) => {
     <div className="space-y-6">
       {/* Saved Addresses Section */}
       <SavedAddresses
-        onSelectAddress={handleSelectSavedAddress}
+        onSelectAddress={(address) => {
+          handleSelectSavedAddress(address);
+          // Also update parent if callback provided
+          if (onAddressSelect) {
+            const addressId = address._id || address.id;
+            onAddressSelect(addressId);
+          }
+        }}
         selectedAddressId={selectedAddressId}
         currentFormData={formData}
       />

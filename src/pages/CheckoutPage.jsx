@@ -88,6 +88,7 @@ const CheckoutPage = () => {
     postalCode: "",
     instructions: "",
   });
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
 
   const subtotal = useMemo(() => {
     return cartItems.reduce((sum, item) => {
@@ -100,6 +101,38 @@ const CheckoutPage = () => {
   const deliveryFee = useMemo(() => subtotal > 500 ? 0 : 50, [subtotal]);
   const discount = 0; // Can be passed from cart if promo was applied
   const total = useMemo(() => subtotal + deliveryFee - discount, [subtotal, deliveryFee]);
+
+  // Validate delivery address - either a saved address must be selected OR all required fields must be filled
+  // MUST be before any early returns to follow Rules of Hooks
+  const isAddressValid = useMemo(() => {
+    // If a saved address is selected, it's valid
+    if (selectedAddressId) {
+      return true;
+    }
+    
+    // Otherwise, check if all required fields are filled
+    const hasFullName = !!deliveryForm.fullName?.trim();
+    const hasPhone = !!deliveryForm.phone?.trim();
+    const hasAddress = !!deliveryForm.address?.trim();
+    const hasCity = !!deliveryForm.city?.trim();
+    const hasArea = !!deliveryForm.area?.trim();
+    
+    return hasFullName && hasPhone && hasAddress && hasCity && hasArea;
+  }, [selectedAddressId, deliveryForm]);
+
+  // Get missing required fields for better error message
+  // MUST be before any early returns to follow Rules of Hooks
+  const getMissingFields = useMemo(() => {
+    if (selectedAddressId) return [];
+    
+    const missing = [];
+    if (!deliveryForm.fullName?.trim()) missing.push("Full Name");
+    if (!deliveryForm.phone?.trim()) missing.push("Phone");
+    if (!deliveryForm.address?.trim()) missing.push("Address");
+    if (!deliveryForm.city?.trim()) missing.push("City");
+    if (!deliveryForm.area?.trim()) missing.push("Area");
+    return missing;
+  }, [selectedAddressId, deliveryForm]);
 
   // Check authentication and redirect if needed
   useEffect(() => {
@@ -116,6 +149,10 @@ const CheckoutPage = () => {
       }
     }
   }, [isAuthenticated, user, authLoading, navigate]);
+
+  const handleFormChange = (newFormData) => {
+    setDeliveryForm(newFormData);
+  };
 
   if (authLoading || cartLoading) {
     return (
@@ -146,17 +183,18 @@ const CheckoutPage = () => {
     );
   }
 
-  const handleFormChange = (newFormData) => {
-    setDeliveryForm(newFormData);
-  };
-
   const handlePlaceOrder = async () => {
-    // Validate form
-    if (!deliveryForm.fullName || !deliveryForm.phone || !deliveryForm.address || !deliveryForm.city || !deliveryForm.area) {
-      toast.error("Please fill in all required fields");
+    // Validate address - either selected saved address or all required fields filled
+    if (!isAddressValid) {
+      if (getMissingFields.length > 0) {
+        toast.error(`Please fill in: ${getMissingFields.join(", ")}`);
+      } else {
+        toast.error("Please select a saved address or fill in all required delivery fields");
+      }
       return;
     }
 
+    // Validate payment method
     if (!paymentMethod) {
       toast.error("Please select a payment method");
       return;
@@ -219,7 +257,12 @@ const CheckoutPage = () => {
           {/* Left Column - Forms */}
           <div className="lg:col-span-2 space-y-6">
             {/* Delivery Information */}
-            <DeliveryForm formData={deliveryForm} onChange={handleFormChange} />
+            <DeliveryForm 
+              formData={deliveryForm} 
+              onChange={handleFormChange}
+              selectedAddressId={selectedAddressId}
+              onAddressSelect={(addressId) => setSelectedAddressId(addressId)}
+            />
 
             {/* Payment Method */}
             <PaymentMethod
@@ -243,7 +286,8 @@ const CheckoutPage = () => {
               size="lg"
               className="w-full"
               onClick={handlePlaceOrder}
-              disabled={isProcessing}
+              disabled={isProcessing || !isAddressValid}
+              title={!isAddressValid ? "Please select a saved address or fill in all required delivery fields" : ""}
             >
               {isProcessing ? (
                 <>
@@ -257,6 +301,23 @@ const CheckoutPage = () => {
                 </>
               )}
             </Button>
+            
+            {/* Validation Message */}
+            {!isAddressValid && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-2">
+                <p className="text-sm font-semibold text-red-800 mb-1">
+                  Address Required
+                </p>
+                <p className="text-xs text-red-600">
+                  {selectedAddressId 
+                    ? "Please ensure address is selected"
+                    : getMissingFields.length > 0
+                    ? `Missing: ${getMissingFields.join(", ")}`
+                    : "Please select a saved address or fill in all required delivery fields"
+                  }
+                </p>
+              </div>
+            )}
 
             {/* Additional Info */}
             <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-charcoal-grey/10 p-5 space-y-4">
