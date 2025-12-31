@@ -23,8 +23,11 @@ const OrdersGrid = ({ orders }) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-      {orders.map((order) => (
-        <RecentOrderCard key={order.id} order={order} />
+      {orders.map((order, index) => (
+        <RecentOrderCard 
+          key={order._id || order.id || `order-${index}`} 
+          order={order} 
+        />
       ))}
     </div>
   );

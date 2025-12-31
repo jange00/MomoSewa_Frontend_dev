@@ -16,8 +16,12 @@ const OrdersGrid = ({ orders, onStatusUpdate }) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-      {orders.map((order) => (
-        <VendorOrderCard key={order.id} order={order} onStatusUpdate={onStatusUpdate} />
+      {orders.map((order, index) => (
+        <VendorOrderCard 
+          key={order._id || order.id || `order-${index}`} 
+          order={order} 
+          onStatusUpdate={onStatusUpdate} 
+        />
       ))}
     </div>
   );

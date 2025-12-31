@@ -12,26 +12,51 @@ const DEFAULT_SETTINGS = {
 
 export const useDeliveryFee = () => {
   // Fetch delivery fee settings (public endpoint, no auth required)
-  const { data: deliveryFeeData, isLoading } = useGet(
+  // If endpoint doesn't exist (404), gracefully fall back to defaults
+  const { data: deliveryFeeData, isLoading, error, isError } = useGet(
     'delivery-fee-settings',
     API_ENDPOINTS.DELIVERY_FEE,
     {
       showErrorToast: false, // Don't show error toast, use defaults instead
+      ignore404: true, // Don't treat 404 as error, use defaults instead
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
       refetchOnWindowFocus: false,
+      retry: false, // Don't retry on 404
+      retryOnMount: false, // Don't retry on mount if it fails
+      enabled: true, // Always try to fetch, but handle 404 gracefully
     }
   );
 
   // Extract settings with fallback to defaults
+  // If endpoint returns 404 or error, use default values
   const settings = useMemo(() => {
+    // If data is null (404 with ignore404), use defaults
+    if (deliveryFeeData === null) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Delivery fee endpoint not found (404), using default values:', DEFAULT_SETTINGS);
+      }
+      return DEFAULT_SETTINGS;
+    }
+    
+    // If there's an error (other than 404), use defaults
+    if (isError && !(error?.status === 404 || error?.response?.status === 404)) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Error fetching delivery fee settings, using defaults:', error);
+      }
+      return DEFAULT_SETTINGS;
+    }
+    
+    // If we have valid data, use it
     if (deliveryFeeData?.data?.settings) {
       return {
         freeDeliveryThreshold: deliveryFeeData.data.settings.freeDeliveryThreshold ?? DEFAULT_SETTINGS.freeDeliveryThreshold,
         deliveryFee: deliveryFeeData.data.settings.deliveryFee ?? DEFAULT_SETTINGS.deliveryFee,
       };
     }
+    
+    // Default fallback
     return DEFAULT_SETTINGS;
-  }, [deliveryFeeData]);
+  }, [deliveryFeeData, error, isError]);
 
   // Calculate delivery fee based on subtotal and discount
   const calculateDeliveryFee = useMemo(() => {

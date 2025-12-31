@@ -180,7 +180,7 @@ const VendorOrderDetailPage = () => {
             </Link>
             <div>
               <h1 className="text-3xl lg:text-4xl font-black text-charcoal-grey mb-2">
-                Order #{order._id || order.id}
+                Order #{order.orderId || order._id || order.id}
               </h1>
               <p className="text-charcoal-grey/70 flex items-center gap-2">
                 <FiClock className="w-4 h-4" />

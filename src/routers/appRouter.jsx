@@ -16,6 +16,8 @@ import { USER_ROLES } from "../common/roleConstants";
 import MenuPage from "../pages/MenuPage";
 import CartPage from "../pages/CartPage";
 import CheckoutPage from "../pages/CheckoutPage";
+import CheckoutSuccessPage from "../pages/CheckoutSuccessPage";
+import CheckoutFailurePage from "../pages/CheckoutFailurePage";
 import AboutPage from "../pages/AboutPage";
 import ContactPage from "../pages/ContactPage";
 
@@ -108,6 +110,14 @@ export const router = createBrowserRouter([
       {
         path: "/checkout",
         element: <CheckoutPage />,
+      },
+      {
+        path: "/checkout/success",
+        element: <CheckoutSuccessPage />,
+      },
+      {
+        path: "/checkout/failure",
+        element: <CheckoutFailurePage />,
       },
       {
         path: "/vendor/application-submitted",

@@ -11,6 +11,7 @@ import { API_ENDPOINTS } from "../api/config";
 import { useAuth } from "../hooks/useAuth";
 import { USER_ROLES } from "../common/roleConstants";
 import { useDeliveryFee } from "../hooks/useDeliveryFee";
+import * as paymentService from "../services/paymentService";
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ const CheckoutPage = () => {
     showErrorToast: true,
   });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("khalti");
+  const [paymentMethod, setPaymentMethod] = useState("esewa");
   const [deliveryForm, setDeliveryForm] = useState({
     fullName: "",
     phone: "",
@@ -217,6 +218,16 @@ const CheckoutPage = () => {
     setIsProcessing(true);
 
     try {
+      // Ensure payment method is valid and not empty
+      if (!paymentMethod || paymentMethod.trim() === '') {
+        toast.error("Please select a payment method");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Prepare payment method - ensure it's a valid string
+      const finalPaymentMethod = paymentMethod?.trim() || paymentMethod;
+      
       const orderData = {
         items: cartItems.map(item => ({
           productId: item.productId || item.product?._id || item.product?.id,
@@ -225,23 +236,202 @@ const CheckoutPage = () => {
         deliveryAddress: {
           fullName: deliveryForm.fullName,
           phone: deliveryForm.phone,
-          address: deliveryForm.address,
+          // Backend expects 'nearestLandmark' instead of 'address'
+          nearestLandmark: deliveryForm.address || deliveryForm.nearestLandmark,
           city: deliveryForm.city,
           area: deliveryForm.area,
-          postalCode: deliveryForm.postalCode,
-          instructions: deliveryForm.instructions,
+          postalCode: deliveryForm.postalCode || undefined,
+          instructions: deliveryForm.instructions || undefined,
+          // Include latitude/longitude if available
+          ...(deliveryForm.latitude && deliveryForm.longitude && {
+            latitude: deliveryForm.latitude,
+            longitude: deliveryForm.longitude,
+          }),
         },
-        paymentMethod: paymentMethod,
+        paymentMethod: finalPaymentMethod,
         total: total,
       };
+
+      // Debug: Log order data being sent
+      if (process.env.NODE_ENV === 'development') {
+        console.log('=== ORDER CREATION DEBUG ===');
+        console.log('Payment method state:', paymentMethod);
+        console.log('Payment method type:', typeof paymentMethod);
+        console.log('Payment method length:', paymentMethod?.length);
+        console.log('Final payment method:', finalPaymentMethod);
+        console.log('Full order data:', JSON.stringify(orderData, null, 2));
+        console.log('===========================');
+      }
 
       const result = await createOrderMutation.mutateAsync(orderData);
 
       if (result?.success) {
-        navigate(`/customer/orders/${result.data?.order?._id || result.data?._id}`);
+        // Extract orderId from various possible response structures
+        // Backend might use 'orderId' (human-readable) or '_id' (MongoDB ObjectId)
+        // Try 'orderId' first as it's more likely what the payment endpoint expects
+        let orderId = result.data?.order?.orderId ||  // Human-readable order ID (e.g., "ORD-MJTOUNN5-EXTGB")
+                     result.data?.order?._id ||        // MongoDB ObjectId
+                     result.data?.order?.id || 
+                     result.data?.orderId ||
+                     result.data?._id || 
+                     result.data?.id ||
+                     result.order?.orderId ||
+                     result.order?._id ||
+                     result.order?.id ||
+                     result.orderId;
+        
+        // If orderId is an object, try to extract the string value
+        if (orderId && typeof orderId === 'object') {
+          orderId = orderId.toString();
+        }
+        
+        // Ensure orderId is a string
+        if (orderId) {
+          orderId = String(orderId).trim();
+        }
+        
+        // Debug: Log order creation result
+        if (process.env.NODE_ENV === 'development') {
+          console.log('=== ORDER CREATION RESULT ===');
+          console.log('Full result:', JSON.stringify(result, null, 2));
+          console.log('Result.data:', result.data);
+          console.log('Result.data.order:', result.data?.order);
+          console.log('Raw extracted Order ID:', orderId);
+          console.log('Order ID type:', typeof orderId);
+          console.log('Order ID value:', orderId);
+          console.log('Payment method:', paymentMethod);
+          console.log('============================');
+        }
+        
+        // Validate orderId before proceeding
+        if (!orderId || orderId === 'undefined' || orderId === 'null' || orderId.length === 0) {
+          console.error('❌ Order ID not found or invalid in response:', {
+            orderId,
+            result,
+            resultData: result.data,
+            resultDataOrder: result.data?.order,
+          });
+          toast.error("Order created but order ID not found. Please check your orders page.");
+          navigate('/customer/orders');
+          return;
+        }
+        
+        // If payment method is eSewa, initiate payment
+        if (paymentMethod === 'esewa' && orderId) {
+          try {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('=== INITIATING ESEWA PAYMENT ===');
+              console.log('Order ID:', orderId);
+              console.log('Order ID type:', typeof orderId);
+              console.log('Order ID length:', orderId?.length);
+            }
+            
+            // Small delay to ensure order is fully saved in database
+            // Increased delay to give backend more time to process
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Log exactly what we're sending to the payment endpoint
+            if (process.env.NODE_ENV === 'development') {
+              console.log('📤 Sending to payment endpoint:', {
+                endpoint: '/payments/esewa/initiate',
+                orderId: orderId,
+                orderIdType: typeof orderId,
+                orderIdLength: orderId?.length,
+                orderIdStringified: JSON.stringify(orderId),
+              });
+            }
+            
+            const paymentResult = await paymentService.initiateEsewaPayment(orderId);
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Payment initiation result:', paymentResult);
+              console.log('Payment result structure:', JSON.stringify(paymentResult, null, 2));
+            }
+            
+            // Check for payment URL in different possible response structures
+            const paymentUrl = paymentResult?.data?.paymentUrl || 
+                             paymentResult?.paymentUrl || 
+                             paymentResult?.data?.data?.paymentUrl ||
+                             paymentResult?.data?.data?.data?.paymentUrl;
+            
+            if (paymentUrl) {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('✅ Payment URL found, redirecting to:', paymentUrl);
+              }
+              
+              // Check if URL is accessible (for development/testing)
+              if (process.env.NODE_ENV === 'development' && paymentUrl.includes('uat.esewa.com.np')) {
+                // In development, show a helpful message if eSewa UAT is not accessible
+                const proceed = window.confirm(
+                  'Redirecting to eSewa payment page.\n\n' +
+                  'If you see a DNS error, it means:\n' +
+                  '1. eSewa UAT server may not be accessible from your network\n' +
+                  '2. You may need VPN or specific network access\n' +
+                  '3. This is normal in development - your integration is working!\n\n' +
+                  'Click OK to proceed, or Cancel to view your order instead.'
+                );
+                
+                if (!proceed) {
+                  // User chose to stay, navigate to order page
+                  navigate(`/customer/orders/${orderId}`);
+                  return;
+                }
+              }
+              
+              // Redirect to eSewa payment page
+              window.location.href = paymentUrl;
+              return; // Don't navigate to order page yet
+            } else {
+              console.error("❌ Payment URL not found in response:", paymentResult);
+              toast.error("Payment URL not received. Please contact support or try again.");
+              // Navigate to order page so user can see the order and try payment later
+            }
+          } catch (paymentError) {
+            console.error("❌ Failed to initiate eSewa payment:", paymentError);
+            console.error("Payment error details:", {
+              message: paymentError?.message,
+              status: paymentError?.status,
+              response: paymentError?.response,
+            });
+            
+            // Check if it's a 404 (endpoint not implemented) or order not found
+            if (paymentError?.status === 404) {
+              if (paymentError?.message?.includes('Order not found')) {
+                toast.error("Order not found. The order may still be processing. Please check your orders page.");
+              } else {
+                toast.error("Payment endpoint not available. Please contact support.");
+              }
+            } else {
+              toast.error("Failed to initiate payment. Please try again or contact support.");
+            }
+            // Still navigate to order page so user can see the order
+          }
+        }
+        
+        // For cash on delivery or if payment initiation failed, navigate to order page
+        if (orderId && orderId !== 'undefined' && orderId !== 'null') {
+          navigate(`/customer/orders/${orderId}`);
+        } else {
+          console.error('Cannot navigate: orderId is invalid:', orderId);
+          toast.error("Order created but order ID not found. Please check your orders page.");
+          navigate('/customer/orders'); // Navigate to orders list instead
+        }
       }
     } catch (error) {
       console.error("Failed to place order:", error);
+      // Error toast is already shown by usePost hook, but log details
+      if (error.details && Array.isArray(error.details)) {
+        const errorMessages = error.details.map(d => d.msg || d.message || JSON.stringify(d)).join(', ');
+        console.error("Validation errors:", errorMessages);
+        
+        // Check if it's a payment method validation error
+        const isPaymentMethodError = errorMessages.toLowerCase().includes('payment method');
+        if (isPaymentMethodError) {
+          console.warn("⚠️ Payment method validation failed.");
+          console.warn("Backend might not have 'esewa' in allowed payment methods list.");
+          console.warn("Please ensure backend validation accepts 'esewa' as a valid payment method.");
+        }
+      }
     } finally {
       setIsProcessing(false);
     }

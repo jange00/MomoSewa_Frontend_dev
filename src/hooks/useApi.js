@@ -20,9 +20,13 @@ export const useGet = (key, endpoint, options = {}) => {
       } catch (error) {
         const errorData = handleApiError(error);
         // Only show toast if explicitly enabled and not a 404 (which might be expected)
-        const isExpected404 = error.response?.status === 404 && options.ignore404;
+        const isExpected404 = (error.response?.status === 404 || error.status === 404) && options.ignore404;
         if (options.showErrorToast !== false && !isExpected404) {
           toast.error(errorData.message);
+        }
+        // If ignore404 is true and it's a 404, return null instead of throwing
+        if (isExpected404) {
+          return null; // Return null so React Query doesn't treat it as an error
         }
         throw errorData;
       }

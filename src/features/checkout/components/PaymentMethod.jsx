@@ -3,6 +3,13 @@ import { FiCreditCard, FiSmartphone, FiShoppingBag, FiLock } from "react-icons/f
 const PaymentMethod = ({ selectedMethod, onSelect }) => {
   const paymentMethods = [
     {
+      id: "esewa",
+      name: "eSewa",
+      icon: FiSmartphone,
+      description: "Pay with eSewa wallet",
+      color: "from-orange-500 to-orange-600",
+    },
+    {
       id: "khalti",
       name: "Khalti",
       icon: FiSmartphone,

@@ -64,7 +64,7 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-bold text-charcoal-grey">Order #{order.id}</h3>
+            <h3 className="font-bold text-charcoal-grey">Order #{order.orderId || order._id || order.id}</h3>
             <span
               className={`px-3 py-1 rounded-full text-xs font-semibold border ${status.bg} ${status.text} ${status.border}`}
             >

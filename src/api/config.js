@@ -43,6 +43,13 @@ export const API_ENDPOINTS = {
   ADMIN: '/admin',
   // Payments
   PAYMENTS: '/payments',
+  ESEWA: {
+    INITIATE: '/payments/esewa/initiate',
+    VERIFY: '/payments/esewa/verify',
+    WEBHOOK: '/payments/esewa/webhook',
+    SUCCESS: '/payments/esewa/success',
+    FAILURE: '/payments/esewa/failure',
+  },
   // Promo Codes
   PROMO_CODES: '/promo-codes',
   // Contact

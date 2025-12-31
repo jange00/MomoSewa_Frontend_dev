@@ -68,7 +68,7 @@ const AdminOrderCard = ({ order }) => {
               <FiPackage className={`w-5 h-5 ${status.text}`} />
             </div>
             <div className="flex-1">
-              <h3 className="font-black text-charcoal-grey text-lg mb-1">Order #{order.id}</h3>
+              <h3 className="font-black text-charcoal-grey text-lg mb-1">Order #{order.orderId || order._id || order.id}</h3>
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${status.dot} animate-pulse`}></span>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${status.bg} ${status.text} ${status.border} border`}>

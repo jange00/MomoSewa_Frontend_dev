@@ -68,7 +68,8 @@ const AdminOrderDetailPage = () => {
     );
   }
 
-  const orderId = order._id || order.id;
+  // Use human-readable orderId if available, fallback to _id or id
+  const orderId = order.orderId || order._id || order.id;
   const orderDate = order.date || order.createdAt || 'Recently';
   const orderItems = order.items || order.orderItems || [];
 

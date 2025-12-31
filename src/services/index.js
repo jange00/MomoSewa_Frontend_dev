@@ -10,3 +10,4 @@ export * as addressService from './addressService';
 export * as reviewService from './reviewService';
 export * as notificationService from './notificationService';
 export * as vendorService from './vendorService';
+export * as paymentService from './paymentService';
