@@ -147,7 +147,7 @@ const AdminOrderCard = ({ order }) => {
             </div>
           )}
         </div>
-        <Link to={`/admin/orders/${order.id}`}>
+        <Link to={`/admin/orders/${order._id || order.id}`}>
           <Button variant="secondary" size="sm" className="w-full group-hover:bg-deep-maroon group-hover:text-white transition-colors">
             <span>View Details</span>
             <FiArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />

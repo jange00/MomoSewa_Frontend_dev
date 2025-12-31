@@ -33,14 +33,22 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
   const statusLabel = statusLabels[order.status] || order.status;
 
   const handleStatusUpdate = (newStatus) => {
+    // Use _id for API calls (backend expects MongoDB ObjectId)
+    const orderIdForApi = order._id || order.id;
+    
+    if (!orderIdForApi) {
+      console.error('Order ID not found for status update');
+      return;
+    }
+    
     if (newStatus === "cancelled") {
       setConfirmDialog({
         isOpen: true,
         title: "Cancel Order",
-        message: `Are you sure you want to cancel order #${order.id}? This action cannot be undone.`,
+        message: `Are you sure you want to cancel order #${order.orderId || order._id || order.id}? This action cannot be undone.`,
         onConfirm: () => {
           if (onStatusUpdate) {
-            onStatusUpdate(order.id, newStatus);
+            onStatusUpdate(orderIdForApi, newStatus);
           }
         },
         variant: "danger",
@@ -48,7 +56,7 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
       return;
     }
     if (onStatusUpdate) {
-      onStatusUpdate(order.id, newStatus);
+      onStatusUpdate(orderIdForApi, newStatus);
     }
   };
 
@@ -193,14 +201,14 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
           </Button>
         )}
         {order.status === "delivered" && (
-          <Link to={`/vendor/orders/${order.id}`} className="flex-1">
+          <Link to={`/vendor/orders/${order._id || order.id}`} className="flex-1">
             <Button variant="secondary" size="sm" className="w-full">
               View Details
             </Button>
           </Link>
         )}
         {(order.status === "preparing" || order.status === "on-the-way") && (
-          <Link to={`/vendor/orders/${order.id}`} className="flex-1">
+          <Link to={`/vendor/orders/${order._id || order.id}`} className="flex-1">
             <Button variant="ghost" size="sm" className="w-full">
               View Details
             </Button>

@@ -68,7 +68,8 @@ const VendorOrdersPage = () => {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((order) => {
-        const orderId = (order._id || order.id || '').toString().toLowerCase();
+        // Search by human-readable orderId, _id, or id
+        const orderId = (order.orderId || order._id || order.id || '').toString().toLowerCase();
         const matchesId = orderId.includes(query);
         const matchesCustomerName = order.customer?.name?.toLowerCase().includes(query);
         const matchesPhone = order.customer?.phone?.includes(query);

@@ -74,7 +74,8 @@ const AdminOrdersPage = () => {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (order) => {
-          const orderId = (order._id || order.id || '').toString().toLowerCase();
+          // Search by human-readable orderId, _id, or id
+          const orderId = (order.orderId || order._id || order.id || '').toString().toLowerCase();
           const customer = order.customer || order.customerId;
           const vendor = order.vendor || order.vendorId;
           const items = order.items || order.orderItems || [];
