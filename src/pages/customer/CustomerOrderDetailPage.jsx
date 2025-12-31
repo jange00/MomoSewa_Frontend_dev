@@ -307,27 +307,29 @@ const CustomerOrderDetailPage = () => {
 
   const renderStars = (productId, currentRating, onChange) => {
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         {Array.from({ length: 5 }, (_, i) => (
           <button
             key={i}
             type="button"
             onClick={() => onChange(i + 1)}
-            className="transition-all duration-200 hover:scale-125 active:scale-95"
+            className="transition-all duration-300 hover:scale-125 active:scale-95 p-1 rounded-lg hover:bg-golden-amber/10"
             aria-label={`Rate ${i + 1} star${i + 1 !== 1 ? 's' : ''}`}
           >
             <FiStar
-              className={`w-6 h-6 transition-colors duration-200 ${
+              className={`w-7 h-7 transition-all duration-300 ${
                 i < currentRating
-                  ? "text-golden-amber fill-golden-amber"
-                  : "text-charcoal-grey/20 hover:text-golden-amber/50"
+                  ? "text-golden-amber fill-golden-amber drop-shadow-sm"
+                  : "text-charcoal-grey/20 hover:text-golden-amber/50 hover:fill-golden-amber/20"
               }`}
             />
           </button>
         ))}
-        <span className="ml-2 text-sm font-semibold text-charcoal-grey/70">
-          {currentRating} / 5
-        </span>
+        {currentRating > 0 && (
+          <span className="ml-2 px-3 py-1 rounded-lg bg-gradient-to-r from-golden-amber/10 to-deep-maroon/5 border border-golden-amber/20 text-sm font-bold text-charcoal-grey">
+            {currentRating} / 5
+          </span>
+        )}
       </div>
     );
   };
@@ -544,7 +546,7 @@ const CustomerOrderDetailPage = () => {
               <div className="flex items-start gap-4 relative group">
                 <div className="relative z-10">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-500 transform group-hover:scale-110 ${
-                    ["pending", "preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
+                ["pending", "preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
                       ? "bg-gradient-to-br from-deep-maroon to-deep-maroon/80 shadow-lg shadow-deep-maroon/30 animate-pulse"
                       : "bg-charcoal-grey/20"
                   }`}>
@@ -572,15 +574,15 @@ const CustomerOrderDetailPage = () => {
                       })}
                     </p>
                   </div>
-                </div>
               </div>
+            </div>
 
               {/* Preparing */}
-              {order.status !== "pending" && (
+            {order.status !== "pending" && (
                 <div className="flex items-start gap-4 relative group animate-fadeIn">
                   <div className="relative z-10">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-500 transform group-hover:scale-110 ${
-                      ["preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
+                  ["preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
                         ? "bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30 animate-bounce"
                         : "bg-charcoal-grey/20"
                     }`}>
@@ -589,7 +591,7 @@ const CustomerOrderDetailPage = () => {
                     {["preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0 && (
                       <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white animate-ping"></div>
                     )}
-                  </div>
+                </div>
                   <div className="flex-1 pt-1">
                     <div className={`rounded-xl p-4 border transition-all duration-300 group-hover:shadow-md ${
                       ["preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
@@ -609,23 +611,23 @@ const CustomerOrderDetailPage = () => {
                         <p className="text-sm text-charcoal-grey/70">Your order has been prepared</p>
                       )}
                     </div>
-                  </div>
                 </div>
-              )}
+              </div>
+            )}
 
               {/* On the Way */}
-              {["on-the-way", "delivered"].includes(order.status) && (
+            {["on-the-way", "delivered"].includes(order.status) && (
                 <div className="flex items-start gap-4 relative group animate-fadeIn">
                   <div className="relative z-10">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-500 transform group-hover:scale-110 ${
-                      order.status === "delivered"
+                  order.status === "delivered"
                         ? "bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30"
                         : "bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30 animate-pulse"
-                    }`}>
+                }`}>
                       🚚
                     </div>
                     <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full border-2 border-white animate-ping"></div>
-                  </div>
+                </div>
                   <div className="flex-1 pt-1">
                     <div className="bg-gradient-to-r from-purple-50 to-transparent rounded-xl p-4 border border-purple-200 transition-all duration-300 group-hover:shadow-md">
                       <p className="font-bold text-lg text-charcoal-grey mb-1 flex items-center gap-2">
@@ -635,16 +637,16 @@ const CustomerOrderDetailPage = () => {
                       {order.estimatedDelivery ? (
                         <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
                           <FiClock className="w-3.5 h-3.5" />
-                          Estimated delivery: {order.estimatedDelivery}
-                        </p>
+                      Estimated delivery: {order.estimatedDelivery}
+                    </p>
                       ) : (
                         <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
                           <span className="animate-bounce">📦</span>
                           Your order is on its way to you!
                         </p>
-                      )}
-                    </div>
-                  </div>
+                  )}
+                </div>
+              </div>
                 </div>
               )}
 
@@ -679,12 +681,12 @@ const CustomerOrderDetailPage = () => {
                         <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
                           <span>🍽️</span>
                           Enjoy your meal!
-                        </p>
-                      )}
+                    </p>
+                  )}
                     </div>
-                  </div>
                 </div>
-              )}
+              </div>
+            )}
             </div>
           </div>
         </Card>
@@ -881,19 +883,22 @@ const CustomerOrderDetailPage = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-charcoal-grey/10">
                   <div>
-                    <h3 className="text-2xl font-black text-charcoal-grey mb-2 flex items-center gap-2">
-                      <span className="text-3xl">⭐</span>
+                    <h3 className="text-2xl font-black text-charcoal-grey mb-2 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-golden-amber/15 via-deep-maroon/10 to-golden-amber/15 flex items-center justify-center border border-golden-amber/20">
+                        <span className="text-2xl">⭐</span>
+                      </div>
                       Rate Your Order
                     </h3>
-                    <p className="text-charcoal-grey/70 text-sm">
+                    <p className="text-charcoal-grey/70 text-sm flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-golden-amber"></span>
                       Share your experience with us! Rate each item from your order.
                     </p>
                   </div>
                   <button
                     onClick={() => setRatingModal({ isOpen: false, ratings: {} })}
-                    className="p-2 rounded-lg hover:bg-charcoal-grey/5 text-charcoal-grey/60 hover:text-charcoal-grey transition-all duration-200"
+                    className="p-2 rounded-lg hover:bg-golden-amber/10 text-charcoal-grey/60 hover:text-golden-amber transition-all duration-200 border border-transparent hover:border-golden-amber/20"
                     aria-label="Close"
                   >
                     <FiX className="w-5 h-5" />
@@ -913,11 +918,11 @@ const CustomerOrderDetailPage = () => {
                     return (
                       <div
                         key={productId || index}
-                        className="bg-gradient-to-r from-golden-amber/5 to-transparent rounded-xl p-5 border border-golden-amber/20 hover:border-golden-amber/40 transition-all duration-300"
+                        className="bg-gradient-to-r from-golden-amber/5 via-deep-maroon/5 to-transparent rounded-xl p-5 border border-golden-amber/20 hover:border-golden-amber/40 transition-all duration-300 shadow-sm hover:shadow-md"
                       >
-                        <div className="flex items-start gap-4 mb-4">
+                        <div className="flex items-start gap-4 mb-5">
                           {/* Product Image/Emoji */}
-                          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex items-center justify-center flex-shrink-0 border border-charcoal-grey/10 overflow-hidden">
+                          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-deep-maroon/15 via-golden-amber/10 to-deep-maroon/15 flex items-center justify-center flex-shrink-0 border border-deep-maroon/20 overflow-hidden shadow-sm">
                             {itemImage ? (
                               <img
                                 src={itemImage}
@@ -934,32 +939,37 @@ const CustomerOrderDetailPage = () => {
                             <h4 className="font-bold text-lg text-charcoal-grey mb-1">
                               {ratingData.productName}
                             </h4>
-                            <p className="text-sm text-charcoal-grey/60">
+                            <p className="text-sm text-charcoal-grey/60 flex items-center gap-2">
+                              <span className="w-1 h-1 rounded-full bg-golden-amber"></span>
                               Quantity: {item.quantity || 1} × Rs. {(item.price || 0).toFixed(2)}
                             </p>
                           </div>
                         </div>
 
                         {/* Rating Stars */}
-                        <div className="mb-4">
-                          <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                        <div className="mb-5">
+                          <label className="block text-sm font-semibold text-charcoal-grey mb-3 flex items-center gap-2">
+                            <span className="text-golden-amber">⭐</span>
                             Your Rating
                           </label>
-                          {renderStars(productId, ratingData.rating, (newRating) =>
-                            handleRatingChange(productId, newRating)
-                          )}
+                          <div className="bg-white/50 rounded-lg p-3 border border-golden-amber/10">
+                            {renderStars(productId, ratingData.rating, (newRating) =>
+                              handleRatingChange(productId, newRating)
+                            )}
+                          </div>
                         </div>
 
                         {/* Comment */}
                         <div>
-                          <label className="block text-sm font-semibold text-charcoal-grey mb-2">
-                            Your Review <span className="text-charcoal-grey/50">(optional but recommended)</span>
+                          <label className="block text-sm font-semibold text-charcoal-grey mb-2 flex items-center gap-2">
+                            <span className="text-deep-maroon">💬</span>
+                            Your Review <span className="text-charcoal-grey/50 font-normal">(optional but recommended)</span>
                           </label>
                           <textarea
                             value={ratingData.comment}
                             onChange={(e) => handleCommentChange(productId, e.target.value)}
                             placeholder="Share your thoughts about this product..."
-                            className="w-full px-4 py-3 border border-charcoal-grey/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white resize-none transition-all duration-300"
+                            className="w-full px-4 py-3 border border-charcoal-grey/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white/80 backdrop-blur-sm resize-none transition-all duration-300 hover:border-golden-amber/30"
                             rows={3}
                           />
                         </div>
@@ -974,7 +984,7 @@ const CustomerOrderDetailPage = () => {
                     variant="ghost"
                     size="md"
                     onClick={() => setRatingModal({ isOpen: false, ratings: {} })}
-                    className="flex-1"
+                    className="flex-1 hover:bg-charcoal-grey/5"
                   >
                     Cancel
                   </Button>
@@ -982,7 +992,7 @@ const CustomerOrderDetailPage = () => {
                     variant="primary"
                     size="md"
                     onClick={handleSubmitRatings}
-                    className="flex-1 bg-gradient-to-r from-golden-amber to-golden-amber/80 hover:from-golden-amber/90 hover:to-golden-amber/70"
+                    className="flex-1 bg-gradient-to-r from-golden-amber via-golden-amber/90 to-golden-amber hover:from-golden-amber/90 hover:via-golden-amber/80 hover:to-golden-amber/70 shadow-md hover:shadow-lg"
                   >
                     <FiStar className="w-5 h-5" />
                     Submit Reviews

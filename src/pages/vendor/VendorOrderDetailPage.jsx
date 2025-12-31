@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { 
   FiArrowLeft, 
@@ -14,7 +14,9 @@ import {
   FiMessageSquare,
   FiTrendingUp,
   FiCalendar,
-  FiShoppingBag
+  FiShoppingBag,
+  FiMail,
+  FiCopy
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
@@ -47,6 +49,10 @@ const VendorOrderDetailPage = () => {
     message: "",
     onConfirm: null,
     variant: "danger",
+  });
+
+  const [contactModal, setContactModal] = useState({
+    isOpen: false,
   });
 
   const statusColors = {
@@ -119,10 +125,54 @@ const VendorOrderDetailPage = () => {
   };
 
   const handleContactCustomer = () => {
-    if (order?.customer?.phone) {
-      window.location.href = `tel:${order.customer.phone}`;
+    if (!order) return;
+    setContactModal({ isOpen: true });
+  };
+
+  const handleCall = (phone) => {
+    if (phone) {
+      window.location.href = `tel:${phone}`;
+    } else {
+      toast.error("Phone number not available");
     }
   };
+
+  const handleEmail = (email) => {
+    if (email) {
+      window.location.href = `mailto:${email}`;
+    } else {
+      toast.error("Email address not available");
+    }
+  };
+
+  const handleCopyToClipboard = (text, label) => {
+    if (text) {
+      navigator.clipboard.writeText(text).then(() => {
+        toast.success(`${label} copied to clipboard!`);
+      }).catch(() => {
+        toast.error("Failed to copy to clipboard");
+      });
+    }
+  };
+
+  // Handle ESC key and body scroll for contact modal
+  useEffect(() => {
+    if (contactModal.isOpen) {
+      document.body.style.overflow = "hidden";
+      
+      const handleEscape = (e) => {
+        if (e.key === "Escape") {
+          setContactModal({ isOpen: false });
+        }
+      };
+
+      document.addEventListener("keydown", handleEscape);
+      return () => {
+        document.body.style.overflow = "unset";
+        document.removeEventListener("keydown", handleEscape);
+      };
+    }
+  }, [contactModal.isOpen]);
 
   if (isLoading) {
     return (
@@ -472,11 +522,39 @@ const VendorOrderDetailPage = () => {
                     <div>
                       <p className="text-sm text-charcoal-grey/60">Delivery Address</p>
                       <p className="font-medium text-charcoal-grey">
-                        {order.customer?.address || order.deliveryAddress || 
-                         (order.deliveryAddressObj ? 
-                           `${order.deliveryAddressObj.address || ''}, ${order.deliveryAddressObj.area || ''}, ${order.deliveryAddressObj.city || ''}` 
-                           : 'No address provided')}
+                        {(() => {
+                          // Handle different address formats from backend
+                          const deliveryAddr = order.deliveryAddress || order.deliveryAddressObj || order.customer?.address;
+                          
+                          // If it's a string, use it directly
+                          if (typeof deliveryAddr === 'string') {
+                            return deliveryAddr;
+                          }
+                          
+                          // If it's an object, format it properly
+                          if (deliveryAddr && typeof deliveryAddr === 'object') {
+                            const parts = [];
+                            if (deliveryAddr.nearestLandmark) parts.push(deliveryAddr.nearestLandmark);
+                            if (deliveryAddr.address) parts.push(deliveryAddr.address);
+                            if (deliveryAddr.area) parts.push(deliveryAddr.area);
+                            if (deliveryAddr.city) parts.push(deliveryAddr.city);
+                            return parts.length > 0 ? parts.join(', ') : 'No address provided';
+                          }
+                          
+                          return 'No address provided';
+                        })()}
                       </p>
+                      {/* Show additional address details if available */}
+                      {order.deliveryAddress && typeof order.deliveryAddress === 'object' && (
+                        <div className="mt-2 space-y-1 text-sm text-charcoal-grey/60">
+                          {order.deliveryAddress.fullName && (
+                            <p><span className="font-semibold">Name:</span> {order.deliveryAddress.fullName}</p>
+                          )}
+                          {order.deliveryAddress.phone && (
+                            <p><span className="font-semibold">Phone:</span> {order.deliveryAddress.phone}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -559,6 +637,191 @@ const VendorOrderDetailPage = () => {
           cancelText="Cancel"
           variant={confirmDialog.variant}
         />
+
+        {/* Contact Customer Modal */}
+        {contactModal.isOpen && order && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300"
+              onClick={() => setContactModal({ isOpen: false })}
+            />
+
+            {/* Modal Container */}
+            <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
+              <Card
+                className="w-full max-w-md p-6 pointer-events-auto transform transition-all duration-300"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-charcoal-grey/10">
+                  <div>
+                    <h3 className="text-2xl font-black text-charcoal-grey mb-2 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-deep-maroon/10 flex items-center justify-center border border-deep-maroon/20">
+                        <FiMessageSquare className="w-5 h-5 text-deep-maroon" />
+                      </div>
+                      Contact Customer
+                    </h3>
+                    <p className="text-sm text-charcoal-grey/70 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-golden-amber"></span>
+                      Order #{order.orderId || order._id || order.id}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setContactModal({ isOpen: false })}
+                    className="p-2 rounded-lg hover:bg-deep-maroon/10 text-charcoal-grey/60 hover:text-deep-maroon transition-all duration-200 border border-transparent hover:border-deep-maroon/20"
+                    aria-label="Close"
+                  >
+                    <FiX className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Customer Information */}
+                <div className="space-y-4 mb-6">
+                  {/* Customer Name */}
+                  {(order.customer?.name || order.customerId?.name) && (
+                    <div className="flex items-center gap-3 p-4 bg-deep-maroon/5 rounded-xl border border-deep-maroon/20 hover:border-deep-maroon/30 transition-all duration-300">
+                      <div className="w-12 h-12 rounded-full bg-deep-maroon/10 flex items-center justify-center flex-shrink-0 border border-deep-maroon/20">
+                        <FiUser className="w-5 h-5 text-deep-maroon" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-charcoal-grey/60 mb-1">Customer Name</p>
+                        <p className="font-bold text-charcoal-grey text-lg">
+                          {order.customer?.name || order.customerId?.name}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phone */}
+                  {(order.customer?.phone || order.customerId?.phone || order.deliveryAddress?.phone) && (
+                    <div className="flex items-center gap-3 p-4 bg-deep-maroon/5 rounded-xl border border-deep-maroon/20 hover:border-deep-maroon/30 transition-all duration-300">
+                      <div className="w-12 h-12 rounded-full bg-deep-maroon/10 flex items-center justify-center flex-shrink-0 border border-deep-maroon/20">
+                        <FiPhone className="w-5 h-5 text-deep-maroon" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-charcoal-grey/60 mb-1">Phone Number</p>
+                        <p className="font-bold text-charcoal-grey text-lg">
+                          {order.customer?.phone || order.customerId?.phone || order.deliveryAddress?.phone}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleCall(order.customer?.phone || order.customerId?.phone || order.deliveryAddress?.phone)}
+                          className="shadow-md hover:shadow-lg"
+                        >
+                          <FiPhone className="w-4 h-4" />
+                          Call
+                        </Button>
+                        <button
+                          onClick={() => handleCopyToClipboard(
+                            order.customer?.phone || order.customerId?.phone || order.deliveryAddress?.phone,
+                            "Phone number"
+                          )}
+                          className="p-2 rounded-lg hover:bg-deep-maroon/10 text-charcoal-grey/60 hover:text-deep-maroon transition-all border border-charcoal-grey/10 hover:border-deep-maroon/20"
+                          aria-label="Copy phone number"
+                        >
+                          <FiCopy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  {(order.customer?.email || order.customerId?.email) && (
+                    <div className="flex items-center gap-3 p-4 bg-golden-amber/5 rounded-xl border border-golden-amber/20 hover:border-golden-amber/30 transition-all duration-300">
+                      <div className="w-12 h-12 rounded-full bg-golden-amber/10 flex items-center justify-center flex-shrink-0 border border-golden-amber/20">
+                        <FiMail className="w-5 h-5 text-golden-amber" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-charcoal-grey/60 mb-1">Email Address</p>
+                        <p className="font-bold text-charcoal-grey break-all text-lg">
+                          {order.customer?.email || order.customerId?.email}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleEmail(order.customer?.email || order.customerId?.email)}
+                          className="shadow-md hover:shadow-lg"
+                        >
+                          <FiMail className="w-4 h-4" />
+                          Email
+                        </Button>
+                        <button
+                          onClick={() => handleCopyToClipboard(
+                            order.customer?.email || order.customerId?.email,
+                            "Email address"
+                          )}
+                          className="p-2 rounded-lg hover:bg-golden-amber/10 text-charcoal-grey/60 hover:text-golden-amber transition-all border border-charcoal-grey/10 hover:border-golden-amber/20"
+                          aria-label="Copy email"
+                        >
+                          <FiCopy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Delivery Address */}
+                  {(() => {
+                    const deliveryAddr = order.deliveryAddress || order.deliveryAddressObj;
+                    if (!deliveryAddr) return null;
+
+                    let addressText = '';
+                    if (typeof deliveryAddr === 'string') {
+                      addressText = deliveryAddr;
+                    } else if (typeof deliveryAddr === 'object') {
+                      const parts = [];
+                      if (deliveryAddr.nearestLandmark) parts.push(deliveryAddr.nearestLandmark);
+                      if (deliveryAddr.address) parts.push(deliveryAddr.address);
+                      if (deliveryAddr.area) parts.push(deliveryAddr.area);
+                      if (deliveryAddr.city) parts.push(deliveryAddr.city);
+                      addressText = parts.join(', ');
+                    }
+
+                    if (!addressText) return null;
+
+                    return (
+                      <div className="flex items-start gap-3 p-4 bg-deep-maroon/5 rounded-xl border border-deep-maroon/20 hover:border-deep-maroon/30 transition-all duration-300">
+                        <div className="w-12 h-12 rounded-full bg-deep-maroon/10 flex items-center justify-center flex-shrink-0 border border-deep-maroon/20 mt-1">
+                          <FiMapPin className="w-5 h-5 text-deep-maroon" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-charcoal-grey/60 mb-1">Delivery Address</p>
+                          <p className="font-medium text-charcoal-grey text-sm leading-relaxed">
+                            {addressText}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleCopyToClipboard(addressText, "Address")}
+                          className="p-2 rounded-lg hover:bg-deep-maroon/10 text-charcoal-grey/60 hover:text-deep-maroon transition-all flex-shrink-0 border border-charcoal-grey/10 hover:border-deep-maroon/20"
+                          aria-label="Copy address"
+                        >
+                          <FiCopy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 pt-4 border-t border-charcoal-grey/10">
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    onClick={() => setContactModal({ isOpen: false })}
+                    className="flex-1 hover:bg-charcoal-grey/5"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
