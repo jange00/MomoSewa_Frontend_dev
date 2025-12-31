@@ -14,31 +14,37 @@ const OrderSummary = ({ items, subtotal, discount = 0, deliveryFee = 0 }) => {
 
       {/* Order Items */}
       <div className="space-y-4 max-h-64 overflow-y-auto">
-        {items.map((item) => (
-          <div key={item.id} className="flex items-center gap-4 pb-4 border-b border-charcoal-grey/10 last:border-0">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex items-center justify-center flex-shrink-0 border border-charcoal-grey/10">
-              {item.image ? (
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-xl" />
-              ) : (
-                <span className="text-2xl">🥟</span>
-              )}
+        {items.map((item, index) => {
+          const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
+          const quantity = item.quantity || 1;
+          const itemKey = item._id || item.id || item.productId || `item-${index}`;
+          
+          return (
+            <div key={itemKey} className="flex items-center gap-4 pb-4 border-b border-charcoal-grey/10 last:border-0">
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex items-center justify-center flex-shrink-0 border border-charcoal-grey/10">
+                {item.image ? (
+                  <img src={item.image} alt={item.name || 'Product'} className="w-full h-full object-cover rounded-xl" />
+                ) : (
+                  <span className="text-2xl">🥟</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-charcoal-grey text-sm truncate">{item.name || 'Unnamed Item'}</h4>
+                {item.variant && (
+                  <p className="text-xs text-charcoal-grey/60 mt-1">{item.variant}</p>
+                )}
+                <p className="text-xs text-charcoal-grey/50 mt-1">
+                  Qty: {quantity} × Rs. {price.toFixed(2)}
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="font-bold text-deep-maroon text-sm">
+                  Rs. {(price * quantity).toFixed(2)}
+                </p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-charcoal-grey text-sm truncate">{item.name}</h4>
-              {item.variant && (
-                <p className="text-xs text-charcoal-grey/60 mt-1">{item.variant}</p>
-              )}
-              <p className="text-xs text-charcoal-grey/50 mt-1">
-                Qty: {item.quantity} × Rs. {item.price.toFixed(2)}
-              </p>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="font-bold text-deep-maroon text-sm">
-                Rs. {(item.price * item.quantity).toFixed(2)}
-              </p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Price Breakdown */}
