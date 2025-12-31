@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { FiStar, FiEdit, FiX, FiSave } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
@@ -25,8 +25,34 @@ const CustomerReviewsPage = () => {
     }
   );
 
+  // Fetch orders to get human-readable order IDs
+  const { data: ordersData } = useGet(
+    'customer-orders-for-reviews',
+    API_ENDPOINTS.ORDERS,
+    { 
+      enabled: isAuthenticated,
+      showErrorToast: false, // Don't show error toast for this background fetch
+    }
+  );
+
   const reviews = Array.isArray(reviewsData?.data?.reviews) ? reviewsData.data.reviews :
                   Array.isArray(reviewsData?.data) ? reviewsData.data : [];
+
+  const orders = Array.isArray(ordersData?.data?.orders) ? ordersData.data.orders :
+                 Array.isArray(ordersData?.data) ? ordersData.data : [];
+
+  // Create a map of MongoDB ObjectId to human-readable orderId
+  const orderIdMap = useMemo(() => {
+    const map = new Map();
+    orders.forEach(order => {
+      const mongoId = order._id || order.id;
+      const humanReadableId = order.orderId;
+      if (mongoId && humanReadableId) {
+        map.set(String(mongoId), humanReadableId);
+      }
+    });
+    return map;
+  }, [orders]);
 
   // Update review mutation
   const updateReviewMutation = usePatch('user-reviews', API_ENDPOINTS.REVIEWS, {
@@ -122,9 +148,37 @@ const CustomerReviewsPage = () => {
                     <h3 className="font-bold text-charcoal-grey text-lg">
                       {review.productName || review.product?.name || 'Product'}
                     </h3>
-                    {review.orderId && (
-                      <Badge variant="default">Order #{review.orderId}</Badge>
-                    )}
+                    {(() => {
+                      // Get human-readable order ID
+                      // Priority: order.orderId > lookup from orderIdMap > orderId (if human-readable) > orderId (fallback)
+                      let displayOrderId = review.order?.orderId;
+                      
+                      // If no order.orderId, try to lookup from orderIdMap using review.orderId
+                      if (!displayOrderId && review.orderId) {
+                        // Check if review.orderId is already human-readable (starts with "ORD-")
+                        if (typeof review.orderId === 'string' && review.orderId.startsWith('ORD-')) {
+                          displayOrderId = review.orderId;
+                        } else {
+                          // review.orderId is likely a MongoDB ObjectId, lookup in map
+                          const humanReadable = orderIdMap.get(String(review.orderId));
+                          if (humanReadable) {
+                            displayOrderId = humanReadable;
+                          } else {
+                            // Fallback to review.orderId if not found in map
+                            displayOrderId = review.orderId;
+                          }
+                        }
+                      }
+                      
+                      if (displayOrderId) {
+                        return (
+                          <Badge variant="default">
+                            Order #{displayOrderId}
+                          </Badge>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                   {editingId === (review._id || review.id) ? (
                     <div className="space-y-4">

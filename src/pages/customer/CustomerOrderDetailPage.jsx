@@ -10,7 +10,8 @@ import {
   FiPrinter,
   FiShoppingBag,
   FiCalendar,
-  FiStar
+  FiStar,
+  FiX
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
@@ -21,6 +22,7 @@ import { OrderCardSkeleton } from "../../ui/skeletons";
 import { useGet, usePost } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
+import { createReview } from "../../services/reviewService";
 
 const CustomerOrderDetailPage = () => {
   const { id } = useParams();
@@ -106,20 +108,11 @@ const CustomerOrderDetailPage = () => {
     });
   }, [rawOrderItems, products]);
 
-  // Debug: Log order data structure in development
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && order) {
-      console.log('=== ORDER DATA DEBUG ===');
-      console.log('Full order:', order);
-      console.log('Order items:', order.items || order.orderItems);
-      if (order.items && order.items.length > 0) {
-        console.log('First item structure:', order.items[0]);
-        console.log('First item keys:', Object.keys(order.items[0]));
-        console.log('First item product:', order.items[0].product);
-      }
-      console.log('========================');
-    }
-  }, [order]);
+  // Rating modal state - declared early so it can be used in useEffect
+  const [ratingModal, setRatingModal] = useState({
+    isOpen: false,
+    ratings: {}, // { productId: { rating: 5, comment: "" } }
+  });
 
   // Cancel order mutation
   // According to backend: PUT /orders/:id/cancel
@@ -135,6 +128,40 @@ const CustomerOrderDetailPage = () => {
     onConfirm: null,
     variant: "danger",
   });
+
+  // Debug: Log order data structure in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && order) {
+      console.log('=== ORDER DATA DEBUG ===');
+      console.log('Full order:', order);
+      console.log('Order items:', order.items || order.orderItems);
+      if (order.items && order.items.length > 0) {
+        console.log('First item structure:', order.items[0]);
+        console.log('First item keys:', Object.keys(order.items[0]));
+        console.log('First item product:', order.items[0].product);
+      }
+      console.log('========================');
+    }
+  }, [order]);
+
+  // Handle ESC key and body scroll for rating modal
+  useEffect(() => {
+    if (ratingModal.isOpen) {
+      document.body.style.overflow = "hidden";
+      
+      const handleEscape = (e) => {
+        if (e.key === "Escape") {
+          setRatingModal({ isOpen: false, ratings: {} });
+        }
+      };
+
+      document.addEventListener("keydown", handleEscape);
+      return () => {
+        document.body.style.overflow = "unset";
+        document.removeEventListener("keydown", handleEscape);
+      };
+    }
+  }, [ratingModal.isOpen]);
 
   const handleReorder = () => {
     if (!order) return;
@@ -192,8 +219,117 @@ const CustomerOrderDetailPage = () => {
   };
 
   const handleRateOrder = () => {
+    if (!order || !orderItems.length) return;
+    
+    // Initialize ratings for all order items
+    const initialRatings = {};
+    orderItems.forEach(item => {
+      const productId = item.productId?._id || item.productId?.id || item.productId;
+      if (productId) {
+        initialRatings[productId] = {
+          rating: 5,
+          comment: "",
+          productName: item.name || item.product?.name || 'Product',
+        };
+      }
+    });
+    
+    setRatingModal({
+      isOpen: true,
+      ratings: initialRatings,
+    });
+  };
+
+  const handleRatingChange = (productId, rating) => {
+    setRatingModal(prev => ({
+      ...prev,
+      ratings: {
+        ...prev.ratings,
+        [productId]: {
+          ...prev.ratings[productId],
+          rating,
+        },
+      },
+    }));
+  };
+
+  const handleCommentChange = (productId, comment) => {
+    setRatingModal(prev => ({
+      ...prev,
+      ratings: {
+        ...prev.ratings,
+        [productId]: {
+          ...prev.ratings[productId],
+          comment,
+        },
+      },
+    }));
+  };
+
+  const handleSubmitRatings = async () => {
     if (!order) return;
-    navigate(`/customer/reviews?order=${order.orderId || order._id || order.id}`);
+
+    try {
+      const orderId = order._id || order.id;
+      const reviewsToSubmit = [];
+
+      // Prepare reviews for each product
+      for (const [productId, ratingData] of Object.entries(ratingModal.ratings)) {
+        if (ratingData.rating && ratingData.comment.trim()) {
+          reviewsToSubmit.push({
+            productId,
+            orderId,
+            rating: ratingData.rating,
+            comment: ratingData.comment.trim(),
+          });
+        }
+      }
+
+      if (reviewsToSubmit.length === 0) {
+        toast.error("Please add at least one rating with a comment");
+        return;
+      }
+
+      // Submit all reviews
+      const promises = reviewsToSubmit.map(review => createReview(review));
+      await Promise.all(promises);
+
+      toast.success(`Successfully submitted ${reviewsToSubmit.length} review${reviewsToSubmit.length > 1 ? 's' : ''}!`);
+      setRatingModal({ isOpen: false, ratings: {} });
+      
+      // Optionally navigate to reviews page
+      // navigate('/customer/reviews');
+    } catch (error) {
+      console.error("Failed to submit reviews:", error);
+      toast.error(error.response?.data?.message || "Failed to submit reviews. Please try again.");
+    }
+  };
+
+  const renderStars = (productId, currentRating, onChange) => {
+    return (
+      <div className="flex items-center gap-1">
+        {Array.from({ length: 5 }, (_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onChange(i + 1)}
+            className="transition-all duration-200 hover:scale-125 active:scale-95"
+            aria-label={`Rate ${i + 1} star${i + 1 !== 1 ? 's' : ''}`}
+          >
+            <FiStar
+              className={`w-6 h-6 transition-colors duration-200 ${
+                i < currentRating
+                  ? "text-golden-amber fill-golden-amber"
+                  : "text-charcoal-grey/20 hover:text-golden-amber/50"
+              }`}
+            />
+          </button>
+        ))}
+        <span className="ml-2 text-sm font-semibold text-charcoal-grey/70">
+          {currentRating} / 5
+        </span>
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -398,75 +534,158 @@ const CustomerOrderDetailPage = () => {
             </Badge>
           </div>
 
-          {/* Status Progress */}
-          <div className="mt-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                ["pending", "preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
-                  ? "bg-deep-maroon text-white"
-                  : "bg-charcoal-grey/20 text-charcoal-grey/40"
-              }`}>
-                <FiPackage className="w-4 h-4" />
+          {/* Status Progress - Beautiful Timeline */}
+          <div className="mt-8 relative">
+            {/* Timeline Line */}
+            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-deep-maroon/30 via-golden-amber/20 to-green-500/30"></div>
+            
+            <div className="space-y-6 relative">
+              {/* Order Placed */}
+              <div className="flex items-start gap-4 relative group">
+                <div className="relative z-10">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-500 transform group-hover:scale-110 ${
+                    ["pending", "preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
+                      ? "bg-gradient-to-br from-deep-maroon to-deep-maroon/80 shadow-lg shadow-deep-maroon/30 animate-pulse"
+                      : "bg-charcoal-grey/20"
+                  }`}>
+                    {["pending", "preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0 ? "📝" : "📝"}
+                  </div>
+                  {["pending", "preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0 && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-ping"></div>
+                  )}
+                </div>
+                <div className="flex-1 pt-1">
+                  <div className="bg-gradient-to-r from-deep-maroon/5 to-transparent rounded-xl p-4 border border-deep-maroon/10 transition-all duration-300 group-hover:shadow-md">
+                    <p className="font-bold text-lg text-charcoal-grey mb-1 flex items-center gap-2">
+                      <span className="text-xl">🍜</span>
+                      Order Placed
+                    </p>
+                    <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
+                      <FiClock className="w-3.5 h-3.5" />
+                      {new Date(orderDate).toLocaleString('en-US', { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-charcoal-grey">Order Placed</p>
-                <p className="text-sm text-charcoal-grey/60">{orderDate}</p>
-              </div>
+
+              {/* Preparing */}
+              {order.status !== "pending" && (
+                <div className="flex items-start gap-4 relative group animate-fadeIn">
+                  <div className="relative z-10">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-500 transform group-hover:scale-110 ${
+                      ["preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
+                        ? "bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30 animate-bounce"
+                        : "bg-charcoal-grey/20"
+                    }`}>
+                      {["preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0 ? "👨‍🍳" : "👨‍🍳"}
+                    </div>
+                    {["preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0 && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white animate-ping"></div>
+                    )}
+                  </div>
+                  <div className="flex-1 pt-1">
+                    <div className={`rounded-xl p-4 border transition-all duration-300 group-hover:shadow-md ${
+                      ["preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
+                        ? "bg-gradient-to-r from-blue-50 to-transparent border-blue-200"
+                        : "bg-charcoal-grey/5 border-charcoal-grey/10"
+                    }`}>
+                      <p className="font-bold text-lg text-charcoal-grey mb-1 flex items-center gap-2">
+                        <span className="text-xl">🔥</span>
+                        Preparing
+                      </p>
+                      {order.status === "preparing" ? (
+                        <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
+                          <span className="animate-pulse">⚡</span>
+                          Your delicious food is being prepared with love!
+                        </p>
+                      ) : (
+                        <p className="text-sm text-charcoal-grey/70">Your order has been prepared</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* On the Way */}
+              {["on-the-way", "delivered"].includes(order.status) && (
+                <div className="flex items-start gap-4 relative group animate-fadeIn">
+                  <div className="relative z-10">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-500 transform group-hover:scale-110 ${
+                      order.status === "delivered"
+                        ? "bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30"
+                        : "bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30 animate-pulse"
+                    }`}>
+                      🚚
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full border-2 border-white animate-ping"></div>
+                  </div>
+                  <div className="flex-1 pt-1">
+                    <div className="bg-gradient-to-r from-purple-50 to-transparent rounded-xl p-4 border border-purple-200 transition-all duration-300 group-hover:shadow-md">
+                      <p className="font-bold text-lg text-charcoal-grey mb-1 flex items-center gap-2">
+                        <span className="text-xl">🏃</span>
+                        On the Way
+                      </p>
+                      {order.estimatedDelivery ? (
+                        <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
+                          <FiClock className="w-3.5 h-3.5" />
+                          Estimated delivery: {order.estimatedDelivery}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
+                          <span className="animate-bounce">📦</span>
+                          Your order is on its way to you!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Delivered */}
+              {order.status === "delivered" && (
+                <div className="flex items-start gap-4 relative group animate-fadeIn">
+                  <div className="relative z-10">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-gradient-to-br from-green-500 to-green-600 shadow-lg shadow-green-500/30 transition-all duration-500 transform group-hover:scale-110 animate-bounce">
+                      ✅
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                  </div>
+                  <div className="flex-1 pt-1">
+                    <div className="bg-gradient-to-r from-green-50 to-transparent rounded-xl p-4 border border-green-200 transition-all duration-300 group-hover:shadow-md">
+                      <p className="font-bold text-lg text-charcoal-grey mb-1 flex items-center gap-2">
+                        <span className="text-xl">🎉</span>
+                        Delivered
+                      </p>
+                      {order.deliveredDate ? (
+                        <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
+                          <FiClock className="w-3.5 h-3.5" />
+                          Delivered on: {new Date(order.deliveredDate).toLocaleString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
+                          <span>🍽️</span>
+                          Enjoy your meal!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {order.status !== "pending" && (
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  ["preparing", "on-the-way", "delivered"].indexOf(order.status) >= 0
-                    ? "bg-deep-maroon text-white"
-                    : "bg-charcoal-grey/20 text-charcoal-grey/40"
-                }`}>
-                  <FiShoppingBag className="w-4 h-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-charcoal-grey">Preparing</p>
-                  {order.status === "preparing" && (
-                    <p className="text-sm text-charcoal-grey/60">Your order is being prepared</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {["on-the-way", "delivered"].includes(order.status) && (
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  order.status === "delivered"
-                    ? "bg-deep-maroon text-white"
-                    : "bg-deep-maroon text-white"
-                }`}>
-                  <FiTruck className="w-4 h-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-charcoal-grey">On the Way</p>
-                  {order.estimatedDelivery && (
-                    <p className="text-sm text-charcoal-grey/60">
-                      Estimated delivery: {order.estimatedDelivery}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {order.status === "delivered" && (
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center">
-                  <FiCheck className="w-4 h-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-charcoal-grey">Delivered</p>
-                  {order.deliveredDate && (
-                    <p className="text-sm text-charcoal-grey/60">
-                      Delivered on: {order.deliveredDate}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </Card>
 
@@ -645,6 +864,134 @@ const CustomerOrderDetailPage = () => {
           cancelText="Cancel"
           variant={confirmDialog.variant}
         />
+
+        {/* Rating Modal */}
+        {ratingModal.isOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300"
+              onClick={() => setRatingModal({ isOpen: false, ratings: {} })}
+            />
+
+            {/* Modal Container */}
+            <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
+              <Card
+                className="w-full max-w-2xl p-6 pointer-events-auto transform transition-all duration-300 my-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-2xl font-black text-charcoal-grey mb-2 flex items-center gap-2">
+                      <span className="text-3xl">⭐</span>
+                      Rate Your Order
+                    </h3>
+                    <p className="text-charcoal-grey/70 text-sm">
+                      Share your experience with us! Rate each item from your order.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setRatingModal({ isOpen: false, ratings: {} })}
+                    className="p-2 rounded-lg hover:bg-charcoal-grey/5 text-charcoal-grey/60 hover:text-charcoal-grey transition-all duration-200"
+                    aria-label="Close"
+                  >
+                    <FiX className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Rating Items */}
+                <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+                  {orderItems.map((item, index) => {
+                    const productId = item.productId?._id || item.productId?.id || item.productId;
+                    if (!productId || !ratingModal.ratings[productId]) return null;
+
+                    const ratingData = ratingModal.ratings[productId];
+                    const itemImage = getItemImage(item);
+                    const itemEmoji = item.emoji || item.product?.emoji || "🥟";
+
+                    return (
+                      <div
+                        key={productId || index}
+                        className="bg-gradient-to-r from-golden-amber/5 to-transparent rounded-xl p-5 border border-golden-amber/20 hover:border-golden-amber/40 transition-all duration-300"
+                      >
+                        <div className="flex items-start gap-4 mb-4">
+                          {/* Product Image/Emoji */}
+                          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex items-center justify-center flex-shrink-0 border border-charcoal-grey/10 overflow-hidden">
+                            {itemImage ? (
+                              <img
+                                src={itemImage}
+                                alt={ratingData.productName}
+                                className="w-full h-full object-cover rounded-xl"
+                              />
+                            ) : (
+                              <span className="text-3xl">{itemEmoji}</span>
+                            )}
+                          </div>
+
+                          {/* Product Info */}
+                          <div className="flex-1">
+                            <h4 className="font-bold text-lg text-charcoal-grey mb-1">
+                              {ratingData.productName}
+                            </h4>
+                            <p className="text-sm text-charcoal-grey/60">
+                              Quantity: {item.quantity || 1} × Rs. {(item.price || 0).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Rating Stars */}
+                        <div className="mb-4">
+                          <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                            Your Rating
+                          </label>
+                          {renderStars(productId, ratingData.rating, (newRating) =>
+                            handleRatingChange(productId, newRating)
+                          )}
+                        </div>
+
+                        {/* Comment */}
+                        <div>
+                          <label className="block text-sm font-semibold text-charcoal-grey mb-2">
+                            Your Review <span className="text-charcoal-grey/50">(optional but recommended)</span>
+                          </label>
+                          <textarea
+                            value={ratingData.comment}
+                            onChange={(e) => handleCommentChange(productId, e.target.value)}
+                            placeholder="Share your thoughts about this product..."
+                            className="w-full px-4 py-3 border border-charcoal-grey/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-white resize-none transition-all duration-300"
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 mt-6 pt-6 border-t border-charcoal-grey/10">
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    onClick={() => setRatingModal({ isOpen: false, ratings: {} })}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={handleSubmitRatings}
+                    className="flex-1 bg-gradient-to-r from-golden-amber to-golden-amber/80 hover:from-golden-amber/90 hover:to-golden-amber/70"
+                  >
+                    <FiStar className="w-5 h-5" />
+                    Submit Reviews
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
