@@ -34,7 +34,8 @@ const DeliveryForm = ({ formData, onChange }) => {
   };
 
   const handleSelectSavedAddress = (address) => {
-    setSelectedAddressId(address.id);
+    const addressId = address._id || address.id;
+    setSelectedAddressId(addressId);
     setSelectedLocation(
       address.latitude && address.longitude
         ? { lat: address.latitude, lng: address.longitude }
@@ -42,13 +43,16 @@ const DeliveryForm = ({ formData, onChange }) => {
     );
 
     // Auto-fill form with saved address
+    // Map API address structure to form fields
     const updatedForm = {
       ...formData,
       fullName: address.fullName || formData.fullName,
       phone: address.phone || formData.phone,
-      address: address.address || formData.address,
+      // API uses nearestLandmark or landmark, form uses address
+      address: address.nearestLandmark || address.landmark || address.address || formData.address,
       city: address.city || formData.city,
       area: address.area || formData.area,
+      postalCode: address.postalCode || formData.postalCode,
       instructions: address.instructions || formData.instructions,
       latitude: address.latitude,
       longitude: address.longitude,

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { FiArrowLeft, FiCheckCircle } from "react-icons/fi";
@@ -8,9 +8,12 @@ import OrderSummary from "../features/checkout/components/OrderSummary";
 import Button from "../ui/buttons/Button";
 import { useGet, usePost } from "../hooks/useApi";
 import { API_ENDPOINTS } from "../api/config";
+import { useAuth } from "../hooks/useAuth";
+import { USER_ROLES } from "../common/roleConstants";
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
 
   // Fetch cart from API
   const { data: cartData, isLoading: cartLoading } = useGet(
@@ -98,12 +101,33 @@ const CheckoutPage = () => {
   const discount = 0; // Can be passed from cart if promo was applied
   const total = useMemo(() => subtotal + deliveryFee - discount, [subtotal, deliveryFee]);
 
-  if (cartLoading) {
+  // Check authentication and redirect if needed
+  useEffect(() => {
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        toast.error("Please login to proceed to checkout");
+        navigate("/login");
+        return;
+      }
+      if (user?.role && user.role !== USER_ROLES.CUSTOMER) {
+        toast.error("Only customers can checkout");
+        navigate("/");
+        return;
+      }
+    }
+  }, [isAuthenticated, user, authLoading, navigate]);
+
+  if (authLoading || cartLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-charcoal-grey/3 via-white to-golden-amber/5 py-20 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
       </div>
     );
+  }
+
+  // If not authenticated or not a customer, don't render (redirect will happen in useEffect)
+  if (!isAuthenticated || (user?.role && user.role !== USER_ROLES.CUSTOMER)) {
+    return null;
   }
 
   if (cartItems.length === 0) {

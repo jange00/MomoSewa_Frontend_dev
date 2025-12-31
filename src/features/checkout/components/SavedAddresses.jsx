@@ -1,56 +1,60 @@
-import { useState, useEffect } from "react";
-import { FiMapPin, FiCheck, FiTrash2, FiPlus, FiX } from "react-icons/fi";
+import { useState, useMemo } from "react";
+import { FiMapPin, FiCheck, FiPlus, FiX } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Button from "../../../ui/buttons/Button";
-
-const STORAGE_KEY = "momosewa_saved_addresses";
+import { useGet } from "../../../hooks/useApi";
+import { API_ENDPOINTS } from "../../../api/config";
+import { useAuth } from "../../../hooks/useAuth";
+import apiClient from "../../../api/client";
 
 const SavedAddresses = ({ onSelectAddress, selectedAddressId, currentFormData }) => {
-  const [savedAddresses, setSavedAddresses] = useState([]);
+  const { isAuthenticated } = useAuth();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState("");
 
-  useEffect(() => {
-    loadSavedAddresses();
-  }, []);
-
-  const loadSavedAddresses = () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setSavedAddresses(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error("Error loading saved addresses:", error);
+  // Fetch addresses from API
+  const { data: addressesData, isLoading, refetch } = useGet(
+    'addresses',
+    API_ENDPOINTS.ADDRESSES,
+    { 
+      showErrorToast: false,
+      enabled: isAuthenticated, // Only fetch when authenticated
     }
-  };
+  );
 
-  const saveAddresses = (addresses) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(addresses));
-      setSavedAddresses(addresses);
-    } catch (error) {
-      console.error("Error saving addresses:", error);
+  // Memoize addresses to prevent unnecessary re-renders
+  const savedAddresses = useMemo(() => {
+    if (!addressesData) return [];
+    if (Array.isArray(addressesData.data?.addresses)) {
+      return addressesData.data.addresses;
     }
-  };
+    if (Array.isArray(addressesData.data)) {
+      return addressesData.data;
+    }
+    return [];
+  }, [addressesData]);
 
   const handleSelect = (address) => {
-    onSelectAddress(address);
+    // Map API address structure to what DeliveryForm expects
+    const mappedAddress = {
+      id: address._id || address.id,
+      label: address.label || 'Address',
+      fullName: address.fullName || '',
+      phone: address.phone || '',
+      address: address.nearestLandmark || address.landmark || address.address || '',
+      city: address.city || '',
+      area: address.area || '',
+      instructions: address.instructions || '',
+      latitude: address.latitude,
+      longitude: address.longitude,
+      postalCode: address.postalCode || '',
+    };
+    onSelectAddress(mappedAddress);
   };
 
-  const handleDelete = (addressId, e) => {
-    e.stopPropagation();
-    const address = savedAddresses.find((addr) => addr.id === addressId);
-    if (address) {
-      const updated = savedAddresses.filter((addr) => addr.id !== addressId);
-      saveAddresses(updated);
-      toast.success(`${address.label} address deleted`);
-    }
-  };
-
-  const handleSaveCurrent = (currentFormData) => {
-    if (!currentFormData.fullName || !currentFormData.address || !currentFormData.city) {
-      toast.error("Please fill in at least name, address, and city to save this address");
+  const handleSaveCurrent = async (currentFormData) => {
+    if (!currentFormData.fullName || !currentFormData.address || !currentFormData.city || !currentFormData.area) {
+      toast.error("Please fill in at least name, address, city, and area to save this address");
       return;
     }
 
@@ -59,27 +63,54 @@ const SavedAddresses = ({ onSelectAddress, selectedAddressId, currentFormData })
       return;
     }
 
-    const newAddress = {
-      id: Date.now().toString(),
-      label: newAddressLabel.trim(),
-      fullName: currentFormData.fullName,
-      phone: currentFormData.phone,
-      address: currentFormData.address,
-      city: currentFormData.city,
-      area: currentFormData.area,
-      instructions: currentFormData.instructions,
-      latitude: currentFormData.latitude,
-      longitude: currentFormData.longitude,
-      savedAt: new Date().toISOString(),
-    };
+    try {
+      // Save address to backend API
+      const response = await apiClient.post(API_ENDPOINTS.ADDRESSES, {
+        label: newAddressLabel.trim(),
+        city: currentFormData.city,
+        area: currentFormData.area,
+        nearestLandmark: currentFormData.address,
+        phone: currentFormData.phone || '',
+        postalCode: currentFormData.postalCode || '',
+        fullName: currentFormData.fullName,
+        latitude: currentFormData.latitude,
+        longitude: currentFormData.longitude,
+        instructions: currentFormData.instructions || '',
+      });
 
-    const updated = [...savedAddresses, newAddress];
-    saveAddresses(updated);
-    setNewAddressLabel("");
-    setShowAddForm(false);
-    toast.success("Address saved successfully!");
+      if (response.data.success) {
+        toast.success("Address saved successfully!");
+        setNewAddressLabel("");
+        setShowAddForm(false);
+        refetch(); // Refresh the addresses list
+      }
+    } catch (error) {
+      console.error("Failed to save address:", error);
+      toast.error(error.response?.data?.message || "Failed to save address");
+    }
   };
 
+  // Don't show if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-charcoal-grey/10 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-golden-amber/10 flex items-center justify-center">
+            <FiMapPin className="w-5 h-5 text-golden-amber" />
+          </div>
+          <h3 className="text-lg font-bold text-charcoal-grey">Saved Addresses</h3>
+        </div>
+        <p className="text-sm text-charcoal-grey/50">Loading addresses...</p>
+      </div>
+    );
+  }
+
+  // Don't show if no addresses and not showing add form
   if (savedAddresses.length === 0 && !showAddForm) {
     return null;
   }
@@ -160,44 +191,47 @@ const SavedAddresses = ({ onSelectAddress, selectedAddressId, currentFormData })
       {/* Saved Addresses List */}
       {savedAddresses.length > 0 && (
         <div className="space-y-3">
-          {savedAddresses.map((address) => (
-            <button
-              key={address.id}
-              onClick={() => handleSelect(address)}
-              className={`w-full p-4 rounded-xl border-2 transition-all duration-300 text-left ${
-                selectedAddressId === address.id
-                  ? "border-deep-maroon bg-deep-maroon/5 shadow-lg"
-                  : "border-charcoal-grey/10 hover:border-charcoal-grey/20 hover:bg-charcoal-grey/2"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-bold text-charcoal-grey">{address.label}</span>
-                    {selectedAddressId === address.id && (
-                      <FiCheck className="w-4 h-4 text-deep-maroon flex-shrink-0" />
-                    )}
-                  </div>
-                  <div className="space-y-1 text-sm text-charcoal-grey/70">
-                    <p className="font-medium">{address.fullName}</p>
-                    {address.phone && <p>{address.phone}</p>}
-                    <p>
-                      {address.address}
-                      {address.area && `, ${address.area}`}
-                      {address.city && `, ${address.city}`}
-                    </p>
+          {savedAddresses.map((address) => {
+            const addressId = address._id || address.id;
+            const isSelected = selectedAddressId === addressId;
+            
+            return (
+              <button
+                key={addressId}
+                onClick={() => handleSelect(address)}
+                className={`w-full p-4 rounded-xl border-2 transition-all duration-300 text-left ${
+                  isSelected
+                    ? "border-deep-maroon bg-deep-maroon/5 shadow-lg"
+                    : "border-charcoal-grey/10 hover:border-charcoal-grey/20 hover:bg-charcoal-grey/2"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-bold text-charcoal-grey">{address.label || 'Address'}</span>
+                      {isSelected && (
+                        <FiCheck className="w-4 h-4 text-deep-maroon flex-shrink-0" />
+                      )}
+                      {address.isDefault && (
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-golden-amber/20 text-golden-amber rounded-full">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1 text-sm text-charcoal-grey/70">
+                      {address.fullName && <p className="font-medium">{address.fullName}</p>}
+                      {address.phone && <p>{address.phone}</p>}
+                      <p>
+                        {address.nearestLandmark || address.landmark || address.address || ''}
+                        {address.area && `, ${address.area}`}
+                        {address.city && `, ${address.city}`}
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={(e) => handleDelete(address.id, e)}
-                  className="p-2 rounded-lg hover:bg-red-50 hover:text-red-600 text-charcoal-grey/40 transition-all flex-shrink-0"
-                  aria-label="Delete address"
-                >
-                  <FiTrash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
 
