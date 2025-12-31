@@ -337,7 +337,7 @@ const CustomerOrderDetailPage = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
           <OrderCardSkeleton count={1} />
         </div>
       </div>
@@ -347,7 +347,7 @@ const CustomerOrderDetailPage = () => {
   if (!order) {
     return (
       <div className="min-h-screen p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <Link to="/customer/orders">
             <Button variant="ghost" size="sm" className="mb-6">
               <FiArrowLeft className="w-4 h-4" />
@@ -489,7 +489,7 @@ const CustomerOrderDetailPage = () => {
 
   return (
     <div className="min-h-screen p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <Link to="/customer/orders">
@@ -573,7 +573,7 @@ const CustomerOrderDetailPage = () => {
                         minute: '2-digit'
                       })}
                     </p>
-                  </div>
+              </div>
               </div>
             </div>
 
@@ -643,7 +643,7 @@ const CustomerOrderDetailPage = () => {
                         <p className="text-sm text-charcoal-grey/70 flex items-center gap-1.5">
                           <span className="animate-bounce">📦</span>
                           Your order is on its way to you!
-                        </p>
+                    </p>
                   )}
                 </div>
               </div>

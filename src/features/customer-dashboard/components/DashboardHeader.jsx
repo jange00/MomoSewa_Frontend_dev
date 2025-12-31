@@ -5,18 +5,21 @@ import { useGet } from "../../../hooks/useApi";
 import { API_ENDPOINTS } from "../../../api/config";
 import { useAuth } from "../../../hooks/useAuth";
 import { USER_ROLES } from "../../../common/roleConstants";
+import { useQueryClient } from "@tanstack/react-query";
 
 const DashboardHeader = ({ onMenuClick }) => {
   const [notificationCount, setNotificationCount] = useState(0);
   const { isAuthenticated, user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch unread notification count from API
-  const { data: unreadCountData } = useGet(
+  const { data: unreadCountData, refetch: refetchUnreadCount } = useGet(
     'notification-unread-count',
     `${API_ENDPOINTS.NOTIFICATIONS}/unread-count`,
     { 
       showErrorToast: false,
       refetchInterval: 30000, // Refetch every 30 seconds
+      enabled: isAuthenticated,
     }
   );
 
@@ -61,18 +64,25 @@ const DashboardHeader = ({ onMenuClick }) => {
     if (unreadCountData?.data?.count !== undefined) {
       setNotificationCount(unreadCountData.data.count);
     }
+  }, [unreadCountData]);
 
-    // Listen for updates from notification pages
+  // Listen for updates from notification pages and socket
+  useEffect(() => {
     const handleUpdate = () => {
-      // Refetch will happen automatically via React Query
+      // Invalidate and refetch unread count
+      queryClient.invalidateQueries({ queryKey: ['notification-unread-count'] });
+      refetchUnreadCount();
     };
 
+    // Listen for custom events
     window.addEventListener("customerNotificationsUpdated", handleUpdate);
+    window.addEventListener("socketNotification", handleUpdate);
 
     return () => {
       window.removeEventListener("customerNotificationsUpdated", handleUpdate);
+      window.removeEventListener("socketNotification", handleUpdate);
     };
-  }, [unreadCountData]);
+  }, [queryClient, refetchUnreadCount]);
 
   return (
     <header className="sticky top-0 z-30 bg-white/98 backdrop-blur-xl border-b border-charcoal-grey/10 shadow-sm">

@@ -5,13 +5,18 @@ import Card from "../../ui/cards/Card";
 import Badge from "../../ui/badges/Badge";
 import { NotificationSkeleton } from "../../ui/skeletons";
 import { useAuth } from "../../hooks/useAuth";
-import { useGet, usePatch } from "../../hooks/useApi";
+import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import { useSocket } from "../../hooks/useSocket";
+import { markAsRead, markAllAsRead } from "../../services/notificationService";
+import { useQueryClient } from "@tanstack/react-query";
 
 const CustomerNotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
+  const [isMarkingRead, setIsMarkingRead] = useState(false);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
   const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   
   // Fetch notifications from API
   const { data: notificationsData, isLoading, refetch } = useGet(
@@ -24,20 +29,6 @@ const CustomerNotificationsPage = () => {
     }
   );
 
-  // Mark as read mutation
-  const markAsReadMutation = usePatch(
-    'notifications',
-    `${API_ENDPOINTS.NOTIFICATIONS}`,
-    { showSuccessToast: false }
-  );
-
-  // Mark all as read mutation
-  const markAllAsReadMutation = usePatch(
-    'notifications',
-    `${API_ENDPOINTS.NOTIFICATIONS}/read-all`,
-    { showSuccessToast: false }
-  );
-
   // Listen to real-time notifications via Socket.IO
   useSocket({
     onNotification: (data) => {
@@ -45,6 +36,8 @@ const CustomerNotificationsPage = () => {
       setNotifications(prev => [data, ...prev]);
       // Refetch to get updated list
       refetch();
+      // Invalidate unread count query
+      queryClient.invalidateQueries({ queryKey: ['notification-unread-count'] });
     },
   });
 
@@ -60,43 +53,50 @@ const CustomerNotificationsPage = () => {
     }
   }, [notificationsData]);
 
-  const handleMarkAsRead = async (id) => {
+  const handleMarkAsRead = async (notificationId) => {
+    if (!notificationId) {
+      console.error("Notification ID not found");
+      return;
+    }
+
+    setIsMarkingRead(true);
     try {
-      await markAsReadMutation.mutateAsync(
-        { isRead: true },
-        {
-          onSuccess: () => {
-            // Update local state optimistically
-            setNotifications(prev =>
-              prev.map(n => (n._id === id || n.id === id ? { ...n, isRead: true } : n))
-            );
-            toast.success("Notification marked as read");
-            // Trigger event for header update
-            window.dispatchEvent(new Event("customerNotificationsUpdated"));
-          },
-        }
+      await markAsRead(notificationId);
+      // Update local state optimistically
+      setNotifications(prev =>
+        prev.map(n => (n._id === notificationId || n.id === notificationId ? { ...n, isRead: true, read: true } : n))
       );
+      // Invalidate queries to refetch unread count
+      queryClient.invalidateQueries({ queryKey: ['notification-unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // Trigger event for header update
+      window.dispatchEvent(new Event("customerNotificationsUpdated"));
+      toast.success("Notification marked as read");
     } catch (error) {
       console.error("Failed to mark notification as read:", error);
+      toast.error(error.message || "Failed to mark notification as read");
+    } finally {
+      setIsMarkingRead(false);
     }
   };
 
   const handleMarkAllAsRead = async () => {
+    setMarkingAllRead(true);
     try {
-      await markAllAsReadMutation.mutateAsync(
-        {},
-        {
-          onSuccess: () => {
-            // Update local state
-            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-            toast.success("All notifications marked as read");
-            // Trigger event for header update
-            window.dispatchEvent(new Event("customerNotificationsUpdated"));
-          },
-        }
-      );
+      await markAllAsRead();
+      // Update local state
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true, read: true })));
+      // Invalidate queries to refetch unread count
+      queryClient.invalidateQueries({ queryKey: ['notification-unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // Trigger event for header update
+      window.dispatchEvent(new Event("customerNotificationsUpdated"));
+      toast.success("All notifications marked as read");
     } catch (error) {
       console.error("Failed to mark all as read:", error);
+      toast.error(error.message || "Failed to mark all notifications as read");
+    } finally {
+      setMarkingAllRead(false);
     }
   };
 
@@ -117,12 +117,12 @@ const CustomerNotificationsPage = () => {
             onClick={handleMarkAllAsRead}
             disabled={
               notifications.every((n) => n.isRead || n.read) ||
-              markAllAsReadMutation.isPending ||
+              markingAllRead ||
               isLoading
             }
             className="px-4 py-2 rounded-xl bg-charcoal-grey/5 text-charcoal-grey/70 hover:bg-charcoal-grey/10 font-semibold text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {markAllAsReadMutation.isPending ? 'Marking...' : 'Mark all as read'}
+            {markingAllRead ? 'Marking...' : 'Mark all as read'}
           </button>
         </div>
 
@@ -172,7 +172,7 @@ const CustomerNotificationsPage = () => {
                     {!isRead && (
                       <button
                         onClick={() => handleMarkAsRead(notificationId)}
-                        disabled={markAsReadMutation.isPending}
+                        disabled={isMarkingRead}
                         className="p-2 rounded-lg hover:bg-charcoal-grey/5 text-charcoal-grey/60 flex-shrink-0 transition-colors disabled:opacity-50"
                       >
                         <FiCheck className="w-5 h-5" />

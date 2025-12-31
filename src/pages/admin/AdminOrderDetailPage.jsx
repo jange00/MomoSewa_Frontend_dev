@@ -97,18 +97,12 @@ const AdminOrderDetailPage = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/admin/orders">
-              <Button variant="ghost" size="sm">
-                <FiArrowLeft className="w-4 h-4 mr-2" />
-                Back to Orders
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-black text-charcoal-grey">Order #{orderId}</h1>
-              <p className="text-charcoal-grey/70 mt-1">Order Details</p>
-            </div>
-          </div>
+          <Link to="/admin/orders">
+            <Button variant="ghost" size="sm">
+              <FiArrowLeft className="w-4 h-4" />
+              Back to Orders
+            </Button>
+          </Link>
           <div className="flex items-center gap-3">
             <span
               className={`px-4 py-2 rounded-full text-sm font-semibold border ${status.bg} ${status.text} ${status.border}`}
@@ -116,11 +110,21 @@ const AdminOrderDetailPage = () => {
               {statusLabel}
             </span>
             <Button variant="ghost" size="sm" onClick={() => window.print()}>
-              <FiPrinter className="w-4 h-4 mr-2" />
+              <FiPrinter className="w-4 h-4" />
               Print
             </Button>
           </div>
         </div>
+
+        {/* Order Info Card */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-black text-charcoal-grey mb-2">Order #{orderId}</h1>
+              <p className="text-charcoal-grey/60">Order Details</p>
+            </div>
+          </div>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}

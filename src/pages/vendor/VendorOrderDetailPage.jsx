@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { 
   FiArrowLeft, 
@@ -40,6 +40,58 @@ const VendorOrderDetailPage = () => {
   );
 
   const order = orderData?.data?.order || orderData?.data || null;
+
+  // Extract order items early so we can use it in other hooks
+  const rawOrderItems = order ? (Array.isArray(order.items) ? order.items : 
+                     Array.isArray(order.orderItems) ? order.orderItems : 
+                     []) : [];
+
+  // Fetch all products to enrich order items with product images if needed
+  const { data: productsData } = useGet(
+    'products-for-orders-vendor',
+    API_ENDPOINTS.PRODUCTS,
+    { 
+      enabled: !!order && rawOrderItems.length > 0, // Only fetch if we have an order with items
+      showErrorToast: false // Don't show error toast for this background fetch
+    }
+  );
+
+  const products = productsData?.data?.products || productsData?.data || [];
+
+  // Enrich order items with product data (including images) from products array
+  const orderItems = useMemo(() => {
+    if (!rawOrderItems.length || !products.length) return rawOrderItems;
+    
+    return rawOrderItems.map(item => {
+      // Get productId - handle both object and string formats
+      const productId = item.productId?._id || item.productId?.id || item.productId;
+      
+      // Find the matching product
+      const product = products.find(p => 
+        p._id === productId || p.id === productId
+      );
+      
+      if (product) {
+        // Merge item with product data, prioritizing item data for name/price (in case it changed)
+        return {
+          ...item,
+          // Add product data for image lookup
+          product: {
+            ...product,
+            // Keep item's name/price if they exist (order-time values)
+            name: item.name || product.name,
+            price: item.price !== undefined ? item.price : product.price,
+          },
+          // Also add image directly on item for easier access
+          image: product.image || (product.images && product.images[0]) || item.image || null,
+          images: product.images || item.images || [],
+        };
+      }
+      
+      // If product not found, return item as-is
+      return item;
+    });
+  }, [rawOrderItems, products]);
 
   // Will use direct API call for order status updates
 
@@ -177,7 +229,7 @@ const VendorOrderDetailPage = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
           <OrderCardSkeleton count={1} />
         </div>
       </div>
@@ -187,7 +239,7 @@ const VendorOrderDetailPage = () => {
   if (!order) {
     return (
       <div className="min-h-screen p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <Card className="p-12 text-center">
             <div className="text-6xl mb-4">📦</div>
             <h2 className="text-2xl font-bold text-charcoal-grey mb-2">Order Not Found</h2>
@@ -216,28 +268,98 @@ const VendorOrderDetailPage = () => {
   const canMarkOnWay = order.status === "preparing";
   const canMarkDelivered = order.status === "on-the-way";
 
+  // Helper function to get item image from various possible locations
+  const getItemImage = (item) => {
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Getting image for item:', {
+        name: item.name,
+        hasImage: !!item.image,
+        hasProduct: !!item.product,
+        productImage: item.product?.image,
+        productImages: item.product?.images,
+        itemKeys: Object.keys(item),
+        productKeys: item.product ? Object.keys(item.product) : []
+      });
+    }
+
+    // Check item.image first (direct on item)
+    if (item.image) {
+      if (typeof item.image === 'string' && item.image.trim() && item.image !== 'null') {
+        const trimmed = item.image.trim();
+        if (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+          if (process.env.NODE_ENV === 'development') { console.log('Found image on item.image:', trimmed); }
+          return trimmed;
+        }
+      }
+    }
+
+    // Check item.imageUrl (legacy field)
+    if (item.imageUrl) {
+      if (typeof item.imageUrl === 'string' && item.imageUrl.trim() && item.imageUrl !== 'null') {
+        const trimmed = item.imageUrl.trim();
+        if (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+          if (process.env.NODE_ENV === 'development') { console.log('Found image on item.imageUrl:', trimmed); }
+          return trimmed;
+        }
+      }
+    }
+
+    // Check nested product object
+    if (item.product) {
+      // Check product.image
+      if (item.product.image) {
+        if (typeof item.product.image === 'string' && item.product.image.trim() && item.product.image !== 'null') {
+          const trimmed = item.product.image.trim();
+          if (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+            if (process.env.NODE_ENV === 'development') { console.log('Found image on item.product.image:', trimmed); }
+            return trimmed;
+          }
+        }
+      }
+
+      // Check product.images array
+      if (item.product.images && Array.isArray(item.product.images) && item.product.images.length > 0) {
+        const validImage = item.product.images.find(img => {
+          if (!img || typeof img !== 'string') return false;
+          const trimmed = img.trim();
+          return trimmed && trimmed !== 'null' && (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/'));
+        });
+        if (validImage) {
+          if (process.env.NODE_ENV === 'development') { console.log('Found image on item.product.images:', validImage.trim()); }
+          return validImage.trim();
+        }
+      }
+
+      // Check legacy imageUrl
+      if (item.product.imageUrl) {
+        if (typeof item.product.imageUrl === 'string' && item.product.imageUrl.trim() && item.product.imageUrl !== 'null') {
+          const trimmed = item.product.imageUrl.trim();
+          if (trimmed.startsWith('http') || trimmed.startsWith('https') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+            if (process.env.NODE_ENV === 'development') { console.log('Found image on item.product.imageUrl:', trimmed); }
+            return trimmed;
+          }
+        }
+      }
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('No image found for item:', item.name);
+    }
+    return null;
+  };
+
   return (
     <div className="min-h-screen p-6 lg:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/vendor/orders">
-              <Button variant="ghost" size="sm">
-                <FiArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl lg:text-4xl font-black text-charcoal-grey mb-2">
-                Order #{order.orderId || order._id || order.id}
-              </h1>
-              <p className="text-charcoal-grey/70 flex items-center gap-2">
-                <FiClock className="w-4 h-4" />
-                {order.date || order.createdAt || 'Recently'}
-              </p>
-            </div>
-          </div>
+          <Link to="/vendor/orders">
+            <Button variant="ghost" size="sm">
+              <FiArrowLeft className="w-4 h-4" />
+              Back to Orders
+            </Button>
+          </Link>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={handleContactCustomer}>
               <FiMessageSquare className="w-4 h-4" />
@@ -247,13 +369,29 @@ const VendorOrderDetailPage = () => {
               <FiPrinter className="w-4 h-4" />
               Print
             </Button>
+          </div>
+        </div>
+
+        {/* Order Status Card */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-black text-charcoal-grey mb-2">
+                Order #{order.orderId || order._id || order.id}
+              </h1>
+              <p className="text-charcoal-grey/60 flex items-center gap-2">
+                <FiClock className="w-4 h-4" />
+                {order.date || order.createdAt || 'Recently'}
+              </p>
+            </div>
             <Badge
               variant={order.status === "delivered" ? "success" : order.status === "cancelled" ? "error" : "primary"}
+              className={`${status.bg} ${status.text} ${status.border} border`}
             >
               {statusLabel}
             </Badge>
           </div>
-        </div>
+        </Card>
 
         {/* Action Buttons */}
         {(canAccept || canReject || canStartPreparing || canMarkReady || canMarkOnWay || canMarkDelivered) && (
@@ -368,16 +506,36 @@ const VendorOrderDetailPage = () => {
             <Card className="p-6">
               <h2 className="text-xl font-bold text-charcoal-grey mb-6">Order Items</h2>
               <div className="space-y-4">
-                {(order.items || order.orderItems || []).map((item, index) => {
+                {orderItems.map((item, index) => {
                   const itemName = item.name || item.product?.name || 'Product';
                   const itemPrice = item.price || item.product?.price || 0;
                   const itemQuantity = item.quantity || 1;
+                  const itemImage = getItemImage(item);
+                  const itemEmoji = item.emoji || item.product?.emoji || "🥟";
+                  
                   return (
                     <div
                       key={index}
                       className="flex items-center gap-4 p-4 rounded-xl bg-charcoal-grey/5 border border-charcoal-grey/10"
                     >
-                      <div className="text-3xl">{item.emoji || "🥟"}</div>
+                      <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex items-center justify-center flex-shrink-0 border border-charcoal-grey/10 overflow-hidden">
+                        {itemImage ? (
+                          <img 
+                            src={itemImage} 
+                            alt={itemName} 
+                            className="w-full h-full object-cover rounded-xl"
+                            onError={(e) => {
+                              // Fallback to emoji if image fails to load
+                              e.target.style.display = 'none';
+                              const fallback = e.target.nextElementSibling;
+                              if (fallback) fallback.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <span className={`text-2xl ${itemImage ? 'hidden' : 'block'}`}>
+                          {itemEmoji}
+                        </span>
+                      </div>
                       <div className="flex-1">
                         <h3 className="font-bold text-charcoal-grey">{itemName}</h3>
                         <p className="text-sm text-charcoal-grey/60">
