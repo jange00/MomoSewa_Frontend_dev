@@ -32,7 +32,11 @@ const VendorNotificationsPage = () => {
         : Array.isArray(notificationsData.data) 
         ? notificationsData.data 
         : [];
-      setNotifications(notificationsList);
+      // Filter to only show vendor notifications (backend should handle this, but double-check)
+      const vendorNotifications = notificationsList.filter(
+        (n) => !n.recipientRole || n.recipientRole === 'Vendor'
+      );
+      setNotifications(vendorNotifications);
     }
   }, [notificationsData]);
 
@@ -101,29 +105,67 @@ const VendorNotificationsPage = () => {
   // Helper function to get notification icon and color based on type
   const getNotificationIcon = (notification) => {
     const type = notification.type?.toLowerCase() || '';
-    const title = (notification.title || '').toLowerCase();
-    const message = (notification.message || '').toLowerCase();
+    const data = notification.data || {};
+    const status = data.status?.toLowerCase() || '';
 
-    // Check for order-related notifications
-    if (type.includes('order') || title.includes('order') || message.includes('order')) {
-      if (message.includes('new') || message.includes('placed') || message.includes('received')) {
+    // Order notifications
+    if (type === 'order') {
+      if (status === 'pending' || status === 'placed' || status === 'new') {
         return { icon: FiShoppingBag, color: 'text-blue-600', bg: 'bg-blue-50' };
       }
-      if (message.includes('cancelled') || message.includes('cancel')) {
+      if (status === 'cancelled' || status === 'canceled') {
         return { icon: FiX, color: 'text-red-600', bg: 'bg-red-50' };
       }
-      if (message.includes('delivered') || message.includes('delivery')) {
+      if (status === 'delivered' || status === 'completed') {
         return { icon: FiTruck, color: 'text-green-600', bg: 'bg-green-50' };
       }
-      if (message.includes('preparing') || message.includes('preparation')) {
+      if (status === 'preparing' || status === 'processing' || status === 'confirmed') {
         return { icon: FiPackage, color: 'text-orange-600', bg: 'bg-orange-50' };
+      }
+      if (status === 'ready' || status === 'dispatched' || status === 'shipped') {
+        return { icon: FiCheckCircle, color: 'text-purple-600', bg: 'bg-purple-50' };
       }
       return { icon: FiPackage, color: 'text-deep-maroon', bg: 'bg-deep-maroon/10' };
     }
 
-    // Check for review-related notifications
-    if (type.includes('review') || title.includes('review') || message.includes('review') || message.includes('rating')) {
+    // Payment notifications
+    if (type === 'payment') {
+      if (status === 'success' || status === 'completed' || status === 'paid') {
+        return { icon: FiCheckCircle, color: 'text-green-600', bg: 'bg-green-50' };
+      }
+      if (status === 'failed' || status === 'declined') {
+        return { icon: FiX, color: 'text-red-600', bg: 'bg-red-50' };
+      }
+      if (status === 'pending') {
+        return { icon: FiBell, color: 'text-orange-600', bg: 'bg-orange-50' };
+      }
+      return { icon: FiBell, color: 'text-blue-600', bg: 'bg-blue-50' };
+    }
+
+    // Review notifications
+    if (type === 'review') {
       return { icon: FiStar, color: 'text-golden-amber', bg: 'bg-golden-amber/10' };
+    }
+
+    // Vendor approval notifications
+    if (type === 'vendor_approval') {
+      if (status === 'approved') {
+        return { icon: FiCheckCircle, color: 'text-green-600', bg: 'bg-green-50' };
+      }
+      if (status === 'rejected' || status === 'declined') {
+        return { icon: FiX, color: 'text-red-600', bg: 'bg-red-50' };
+      }
+      return { icon: FiBell, color: 'text-orange-600', bg: 'bg-orange-50' };
+    }
+
+    // Inventory notifications
+    if (type === 'inventory') {
+      return { icon: FiPackage, color: 'text-orange-600', bg: 'bg-orange-50' };
+    }
+
+    // System notifications
+    if (type === 'system') {
+      return { icon: FiBell, color: 'text-deep-maroon', bg: 'bg-deep-maroon/10' };
     }
 
     // Default notification icon
@@ -132,16 +174,52 @@ const VendorNotificationsPage = () => {
 
   // Extract order ID from notification if available
   const getOrderId = (notification) => {
-    return notification.orderId || notification.order?._id || notification.order?.id || notification.order?._id || null;
+    // Check data field first (API structure)
+    if (notification.data?.orderId) {
+      return notification.data.orderId;
+    }
+    // Fallback to other possible fields
+    return notification.orderId || 
+           notification.order?._id || 
+           notification.order?.id || 
+           null;
+  };
+
+  // Extract order display ID (human-readable)
+  const getOrderDisplayId = (notification) => {
+    // Check data field first (API structure)
+    if (notification.data?.orderIdStr) {
+      return notification.data.orderIdStr;
+    }
+    const orderId = getOrderId(notification);
+    if (orderId) {
+      // If it's a MongoDB ObjectId, show first 8 chars
+      return orderId.length > 12 ? orderId.substring(0, 8) : orderId;
+    }
+    return 'Order';
   };
 
   // Extract review ID from notification if available
   const getReviewId = (notification) => {
-    return notification.reviewId || notification.review?._id || notification.review?.id || null;
+    if (notification.data?.reviewId) {
+      return notification.data.reviewId;
+    }
+    return notification.reviewId || 
+           notification.review?._id || 
+           notification.review?.id || 
+           null;
   };
 
   // Get customer name from notification
   const getCustomerName = (notification) => {
+    // Check data field first
+    if (notification.data?.customerName) {
+      return notification.data.customerName;
+    }
+    if (notification.data?.customer?.name) {
+      return notification.data.customer.name;
+    }
+    // Fallback to other possible fields
     return notification.customer?.name || 
            notification.customer?.fullName ||
            notification.order?.customer?.name ||
@@ -152,15 +230,53 @@ const VendorNotificationsPage = () => {
 
   // Get product names from notification
   const getProductNames = (notification) => {
-    const order = notification.order;
+    // Check data field first (pre-formatted string)
+    if (notification.data?.productNames) {
+      return notification.data.productNames;
+    }
+    
+    // Check data.products array
+    if (notification.data?.products && Array.isArray(notification.data.products)) {
+      const names = notification.data.products
+        .slice(0, 2)
+        .map(p => p.name || p.productName || p.product?.name)
+        .filter(Boolean);
+      if (names.length > 0) {
+        return notification.data.products.length > 2 
+          ? `${names.join(', ')} and ${notification.data.products.length - 2} more`
+          : names.join(', ');
+      }
+    }
+    
+    // Check data.items array (order items)
+    if (notification.data?.items && Array.isArray(notification.data.items)) {
+      const names = notification.data.items
+        .slice(0, 2)
+        .map(item => item.name || item.product?.name || item.productName)
+        .filter(Boolean);
+      if (names.length > 0) {
+        return notification.data.items.length > 2 
+          ? `${names.join(', ')} and ${notification.data.items.length - 2} more`
+          : names.join(', ');
+      }
+    }
+    
+    // Fallback to order structure (populated order object)
+    const order = notification.order || notification.data?.order;
     if (!order) return null;
 
     const items = order.items || order.orderItems || [];
     if (items.length === 0) return null;
 
     const productNames = items
-      .slice(0, 2) // Show max 2 products
-      .map(item => item.name || item.product?.name || 'Product')
+      .slice(0, 2)
+      .map(item => {
+        // Handle product reference (populated or just ID)
+        if (item.product && typeof item.product === 'object') {
+          return item.product.name || item.name || 'Product';
+        }
+        return item.name || 'Product';
+      })
       .filter(Boolean);
 
     if (productNames.length === 0) return null;
@@ -171,74 +287,214 @@ const VendorNotificationsPage = () => {
     return productNames.join(', ');
   };
 
-  // Generate better notification title and message
+
+  // Generate vendor-specific notification title and message based on API structure
   const getNotificationContent = (notification) => {
     const type = notification.type?.toLowerCase() || '';
-    const title = (notification.title || '').toLowerCase();
-    const message = (notification.message || '').toLowerCase();
-    const order = notification.order;
+    const data = notification.data || {};
+    const status = data.status?.toLowerCase() || '';
     const customerName = getCustomerName(notification);
     const productNames = getProductNames(notification);
-    const orderId = getOrderId(notification);
-    const orderDisplayId = order?.orderId || orderId?.substring(0, 8) || 'Order';
+    const orderDisplayId = getOrderDisplayId(notification);
 
-    // New order notification
-    if (type.includes('order') && (title.includes('new') || title.includes('placed') || message.includes('new order') || message.includes('order placed'))) {
-      return {
-        title: `New Order Received`,
-        message: productNames 
-          ? `${customerName} placed an order for ${productNames}`
-          : `${customerName} placed a new order`,
-        subtitle: `Order #${orderDisplayId} • Rs. ${(order?.total || order?.amount || 0).toFixed(2)}`
-      };
-    }
+    // ORDER NOTIFICATIONS
+    if (type === 'order') {
+      // New order received
+      if (status === 'pending' || status === 'placed' || status === 'new' || !status) {
+        return {
+          title: 'New Order Received',
+          message: productNames 
+            ? `New order for ${productNames}`
+            : `You have received a new order`,
+          subtitle: `Order #${orderDisplayId}`
+        };
+      }
+
+      // Order confirmed
+      if (status === 'confirmed') {
+        return {
+          title: 'Order Confirmed',
+          message: `Order #${orderDisplayId} has been confirmed`,
+          subtitle: null
+        };
+      }
+
+      // Order being prepared
+      if (status === 'preparing' || status === 'processing') {
+        return {
+          title: 'Order in Preparation',
+          message: `Order #${orderDisplayId} is being prepared`,
+          subtitle: null
+        };
+      }
+
+      // Order ready
+      if (status === 'ready') {
+        return {
+          title: 'Order Ready',
+          message: `Order #${orderDisplayId} is ready for pickup/delivery`,
+          subtitle: null
+        };
+      }
+
+      // Order dispatched/shipped
+      if (status === 'dispatched' || status === 'shipped') {
+        return {
+          title: 'Order Dispatched',
+          message: `Order #${orderDisplayId} has been dispatched`,
+          subtitle: null
+        };
+      }
+
+      // Order delivered
+      if (status === 'delivered' || status === 'completed') {
+        return {
+          title: 'Order Delivered',
+          message: `Order #${orderDisplayId} has been delivered successfully`,
+          subtitle: null
+        };
+      }
 
     // Order cancelled
-    if (message.includes('cancelled') || message.includes('cancel')) {
+      if (status === 'cancelled' || status === 'canceled') {
+        return {
+          title: 'Order Cancelled',
+          message: `Order #${orderDisplayId} has been cancelled`,
+          subtitle: data.cancellationReason ? `Reason: ${data.cancellationReason}` : null
+        };
+      }
+
+      // Generic order status update
+      const statusText = status.charAt(0).toUpperCase() + status.slice(1).replace(/-/g, ' ');
       return {
-        title: `Order Cancelled`,
-        message: `${customerName} cancelled their order`,
-        subtitle: `Order #${orderDisplayId}`
+        title: 'Order Status Updated',
+        message: `Order #${orderDisplayId} status changed to ${statusText}`,
+        subtitle: null
       };
     }
 
-    // Order delivered
-    if (message.includes('delivered') || message.includes('delivery')) {
+    // PAYMENT NOTIFICATIONS
+    if (type === 'payment') {
+      if (status === 'success' || status === 'completed' || status === 'paid') {
+        return {
+          title: 'Payment Received',
+          message: `Payment received for Order #${orderDisplayId}`,
+          subtitle: null
+        };
+      }
+
+      if (status === 'failed' || status === 'declined') {
+        return {
+          title: 'Payment Failed',
+          message: `Payment failed for Order #${orderDisplayId}`,
+          subtitle: null
+        };
+      }
+
+      if (status === 'pending') {
+        return {
+          title: 'Payment Pending',
+          message: `Payment pending for Order #${orderDisplayId}`,
+          subtitle: null
+        };
+      }
+
       return {
-        title: `Order Delivered`,
-        message: `Order #${orderDisplayId} has been delivered to ${customerName}`,
-        subtitle: `Total: Rs. ${(order?.total || order?.amount || 0).toFixed(2)}`
+        title: 'Payment Update',
+        message: `Payment update for Order #${orderDisplayId}`,
+        subtitle: null
       };
     }
 
-    // Order status update
-    if (message.includes('status') || message.includes('update')) {
-      const status = order?.status || 'updated';
-      const statusText = status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+    // REVIEW NOTIFICATIONS
+    if (type === 'review') {
+      const rating = data.rating || notification.data?.rating;
+      const productName = data.productName || notification.data?.productName || 'your product';
+      const reviewComment = data.comment || notification.data?.comment;
+      
       return {
-        title: `Order Status Updated`,
-        message: `Order #${orderDisplayId} is now ${statusText}`,
-        subtitle: `Customer: ${customerName}`
+        title: 'New Review Received',
+        message: `You received a ${rating ? `${rating}-star ` : ''}review for ${productName}`,
+        subtitle: reviewComment ? `"${reviewComment.substring(0, 50)}${reviewComment.length > 50 ? '...' : ''}"` : null
       };
     }
 
-    // Review notification
-    if (type.includes('review') || title.includes('review') || message.includes('review') || message.includes('rating')) {
-      const review = notification.review;
-      const rating = review?.rating || notification.rating;
-      const productName = review?.product?.name || notification.productName || 'your product';
+    // VENDOR APPROVAL NOTIFICATIONS
+    if (type === 'vendor_approval') {
+      if (status === 'approved') {
+        return {
+          title: 'Vendor Application Approved',
+          message: 'Congratulations! Your vendor application has been approved.',
+          subtitle: 'You can now start managing your products and orders.'
+        };
+      }
+
+      if (status === 'rejected' || status === 'declined') {
+        return {
+          title: 'Vendor Application Rejected',
+          message: 'Your vendor application has been rejected.',
+          subtitle: data.rejectionReason ? `Reason: ${data.rejectionReason}` : 'Please contact support for more information.'
+        };
+      }
+
       return {
-        title: `New Review`,
-        message: `${customerName} left a ${rating ? `${rating}-star ` : ''}review for ${productName}`,
-        subtitle: review?.comment ? `"${review.comment.substring(0, 50)}${review.comment.length > 50 ? '...' : ''}"` : null
+        title: 'Vendor Application Update',
+        message: 'Your vendor application status has been updated.',
+        subtitle: null
       };
     }
 
-    // Default: use original but try to enhance
+    // INVENTORY NOTIFICATIONS
+    if (type === 'inventory') {
+      const productName = data.productName || 'Product';
+      
+      if (status === 'low_stock' || status === 'low') {
+        return {
+          title: 'Low Stock Alert',
+          message: `${productName} is running low on stock`,
+          subtitle: data.currentStock ? `Current stock: ${data.currentStock} units` : null
+        };
+      }
+
+      if (status === 'out_of_stock') {
+        return {
+          title: 'Out of Stock',
+          message: `${productName} is out of stock`,
+          subtitle: 'Please restock to continue receiving orders.'
+        };
+      }
+
+      return {
+        title: 'Inventory Update',
+        message: `Inventory update for ${productName}`,
+        subtitle: null
+      };
+    }
+
+    // SYSTEM NOTIFICATIONS
+    if (type === 'system') {
+      return {
+        title: notification.title || 'System Notification',
+        message: notification.message || 'You have a new system notification',
+        subtitle: null
+      };
+    }
+
+    // DEFAULT: Use API title/message but ensure it's vendor-appropriate
+    // If the message is customer-facing, try to make it vendor-appropriate
+    let title = notification.title || 'Notification';
+    let message = notification.message || 'You have a new notification';
+    
+    // Transform customer-facing messages to vendor-appropriate ones
+    if (message.toLowerCase().includes('your order')) {
+      // This shouldn't happen if backend filters correctly, but handle it anyway
+      message = message.replace(/your order/i, `Order #${orderDisplayId}`);
+    }
+
     return {
-      title: notification.title || 'Notification',
-      message: notification.message || notification.body || notification.content || 'You have a new notification',
-      subtitle: orderId ? `Order #${orderDisplayId}` : null
+      title,
+      message,
+      subtitle: orderDisplayId !== 'Order' ? `Order #${orderDisplayId}` : null
     };
   };
 
@@ -313,16 +569,19 @@ const VendorNotificationsPage = () => {
             const isRead = notification.isRead || notification.read;
             const { icon: NotificationIcon, color, bg } = getNotificationIcon(notification);
             const orderId = getOrderId(notification);
+            const orderDisplayId = getOrderDisplayId(notification);
             const reviewId = getReviewId(notification);
             const notificationDate = notification.createdAt || notification.date || notification.time;
             const notificationContent = getNotificationContent(notification);
 
             // Determine if notification is clickable
-            const isClickable = orderId || reviewId;
+            const isClickable = orderId || reviewId || notification.type === 'inventory';
             const notificationLink = orderId 
               ? `/vendor/orders/${orderId}`
               : reviewId 
               ? `/vendor/products` // Could link to product reviews page if exists
+              : notification.type === 'inventory'
+              ? `/vendor/products` // Link to products page for inventory alerts
               : null;
 
             const NotificationContent = (
@@ -348,7 +607,22 @@ const VendorNotificationsPage = () => {
                           )}
                           {orderId && (
                             <Badge variant="default" className="text-xs">
-                              Order #{notification.order?.orderId || orderId?.substring(0, 8)}
+                              Order #{orderDisplayId}
+                            </Badge>
+                          )}
+                          {notification.type && (
+                            <Badge 
+                              variant="default" 
+                              className={`text-xs ${
+                                notification.type === 'order' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                notification.type === 'payment' ? 'bg-green-50 text-green-700 border-green-200' :
+                                notification.type === 'review' ? 'bg-golden-amber/10 text-golden-amber border-golden-amber/20' :
+                                notification.type === 'inventory' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                notification.type === 'vendor_approval' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                'bg-charcoal-grey/10 text-charcoal-grey border-charcoal-grey/20'
+                              }`}
+                            >
+                              {notification.type.charAt(0).toUpperCase() + notification.type.slice(1).replace('_', ' ')}
                             </Badge>
                           )}
                           {reviewId && (
