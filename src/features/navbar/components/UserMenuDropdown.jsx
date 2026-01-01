@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { FiChevronDown, FiLogOut } from "react-icons/fi";
 import { DASHBOARD_MENU_ITEMS } from "../../customer-dashboard/constants/menuItems";
@@ -6,6 +6,8 @@ import { VENDOR_DASHBOARD_MENU_ITEMS } from "../../vendor-dashboard/constants/me
 import { ADMIN_DASHBOARD_MENU_ITEMS } from "../../admin-dashboard/constants/menuItems";
 import { USER_ROLES, ROLE_DASHBOARD_ROUTES } from "../../../common/roleConstants";
 import { useAuth } from "../../../hooks/useAuth";
+import { useGet } from "../../../hooks/useApi";
+import { API_ENDPOINTS } from "../../../api/config";
 
 const UserMenuDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,10 +15,41 @@ const UserMenuDropdown = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
+  const [imageError, setImageError] = useState(false);
+  const [dropdownImageError, setDropdownImageError] = useState(false);
+
+  // Fetch user profile to get profile picture
+  const { data: profileData } = useGet(
+    'navbar-user-profile',
+    `${API_ENDPOINTS.USERS}/profile`,
+    { 
+      showErrorToast: false, // Don't show error if endpoint doesn't exist
+      retry: false,
+      enabled: isAuthenticated && !!user, // Only fetch if user is authenticated
+    }
+  );
 
   // Get user info from useAuth hook
   const userName = user?.name || user?.storeName || user?.businessName || "User";
   const userRole = user?.role;
+
+  // Get profile picture from multiple possible locations
+  const profilePicture = useMemo(() => {
+    return profileData?.data?.profilePicture || 
+           profileData?.data?.user?.profilePicture ||
+           user?.profilePicture ||
+           user?.avatar ||
+           user?.image ||
+           null;
+  }, [profileData, user]);
+
+  // Reset image errors when profile picture changes
+  useEffect(() => {
+    if (profilePicture) {
+      setImageError(false);
+      setDropdownImageError(false);
+    }
+  }, [profilePicture]);
   
   // Normalize role (handle case variations from backend)
   const normalizeRole = (role) => {
@@ -87,9 +120,20 @@ const UserMenuDropdown = () => {
         className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-deep-maroon via-[#7a2533] to-deep-maroon text-white font-semibold text-sm hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg relative overflow-hidden group"
       >
         {/* Avatar */}
-        <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-sm border border-white/30">
-          {userName.charAt(0).toUpperCase()}
-        </div>
+        {profilePicture && !imageError ? (
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/30 flex-shrink-0">
+            <img 
+              src={profilePicture} 
+              alt={userName}
+              className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
+            />
+          </div>
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-sm border border-white/30 flex-shrink-0">
+            {userName.charAt(0).toUpperCase()}
+          </div>
+        )}
         {/* User Name */}
         <span className="relative z-10 tracking-wide hidden sm:inline-block">
           {userName.split(" ")[0]}
@@ -119,9 +163,20 @@ const UserMenuDropdown = () => {
             {/* User Info Section */}
             <div className="px-4 py-4 border-b border-charcoal-grey/10 bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-sm shadow-md">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
+                {profilePicture && !dropdownImageError ? (
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-deep-maroon/10 to-golden-amber/10 flex items-center justify-center border-2 border-deep-maroon/20 shadow-md flex-shrink-0">
+                    <img 
+                      src={profilePicture} 
+                      alt={userName}
+                      className="w-full h-full object-cover"
+                      onError={() => setDropdownImageError(true)}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-charcoal-grey text-sm truncate">{userName}</p>
                   <p className="text-xs text-charcoal-grey/60 font-medium">

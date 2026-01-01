@@ -9,9 +9,10 @@ import {
   FiUser
 } from "react-icons/fi";
 
- // Admin Dashboard menu items configuration
- // This can be easily extended or modified for different admin permissions
- 
+/**
+ * Admin Dashboard menu items configuration
+ * This can be easily extended or modified for different admin permissions
+ */
 export const ADMIN_DASHBOARD_MENU_ITEMS = [
   { path: "/admin/dashboard", label: "Dashboard", icon: FiHome },
   { path: "/admin/orders", label: "All Orders", icon: FiPackage },

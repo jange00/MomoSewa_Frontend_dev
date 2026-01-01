@@ -3,7 +3,6 @@ import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
 import Input from "../../ui/inputs/Input";
 import PasswordChangeDialog from "../../ui/modals/PasswordChangeDialog";
-import { ProfileSkeleton } from "../../ui/skeletons";
 import toast from "react-hot-toast";
 import { FiSave, FiUser, FiMail, FiPhone, FiLock } from "react-icons/fi";
 import { useAuth } from "../../hooks/useAuth";
@@ -77,10 +76,8 @@ const AdminProfilePage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto">
-          <ProfileSkeleton />
-        </div>
+      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
       </div>
     );
   }

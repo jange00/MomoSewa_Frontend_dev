@@ -1,4 +1,4 @@
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiX } from "react-icons/fi";
 
 const OrdersHeader = ({ title = "All Orders", searchQuery, onSearchChange }) => {
   return (
@@ -20,11 +20,20 @@ const OrdersHeader = ({ title = "All Orders", searchQuery, onSearchChange }) => 
           </div>
           <input
             type="text"
-            placeholder="Search orders by ID, customer, vendor..."
+            placeholder="Search orders by ID, customer, vendor, items..."
             value={searchQuery || ""}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-12 pr-4 py-2.5 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 placeholder:text-charcoal-grey/30 text-sm font-medium"
+            className="w-full pl-12 pr-12 py-2.5 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 placeholder:text-charcoal-grey/30 text-sm font-medium"
           />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange("")}
+              className="absolute inset-y-0 right-0 flex items-center pr-4 text-charcoal-grey/60 hover:text-charcoal-grey transition-colors"
+              aria-label="Clear search"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -34,23 +34,23 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, onUpdate, onApprove, onRej
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const vendorId = vendor._id || vendor.id;
+
   const handleSave = () => {
     // TODO: Replace with actual API call
-    onUpdate?.(vendor.id, formData);
+    onUpdate?.(vendorId, formData);
     toast.success("Vendor updated successfully!");
     setIsEditing(false);
   };
 
   const handleApprove = () => {
-    onApprove?.(vendor.id);
-    toast.success("Vendor approved successfully!");
-    onClose();
+    onApprove?.(vendorId);
+    // Don't show toast here - let the parent handle it
   };
 
   const handleReject = () => {
-    onReject?.(vendor.id);
-    toast.success("Vendor application rejected");
-    onClose();
+    onReject?.(vendorId);
+    // Don't show toast here - let the parent handle it
   };
 
   return (
@@ -70,11 +70,13 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, onUpdate, onApprove, onRej
           {/* Vendor Avatar */}
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-3xl">
-              {vendor.name.charAt(0).toUpperCase()}
+              {(vendor.name || vendor.businessName || 'V').charAt(0).toUpperCase()}
             </div>
             <div>
-              <h3 className="text-xl font-black text-charcoal-grey">{vendor.businessName}</h3>
-              <p className="text-sm text-charcoal-grey/60">{vendor.name}</p>
+              <h3 className="text-xl font-black text-charcoal-grey">{vendor.businessName || vendor.name || 'Vendor'}</h3>
+              {vendor.name && vendor.name !== vendor.businessName && (
+                <p className="text-sm text-charcoal-grey/60">{vendor.name}</p>
+              )}
               <span
                 className={`inline-block mt-2 px-3 py-1 rounded-lg text-sm font-medium ${
                   vendor.status === "active"
@@ -155,11 +157,16 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, onUpdate, onApprove, onRej
                   <span className="font-semibold">Phone:</span>
                   <span>{vendor.phone}</span>
                 </div>
-                <div className="flex items-center gap-3 text-charcoal-grey/70">
-                  <FiCalendar className="w-5 h-5" />
-                  <span className="font-semibold">Joined:</span>
-                  <span>{vendor.joinDate}</span>
-                </div>
+                {(vendor.createdAt || vendor.joinDate) && (
+                  <div className="flex items-center gap-3 text-charcoal-grey/70">
+                    <FiCalendar className="w-5 h-5" />
+                    <span className="font-semibold">Joined:</span>
+                    <span>
+                      {vendor.joinDate || 
+                        (vendor.createdAt ? new Date(vendor.createdAt).toLocaleDateString() : 'N/A')}
+                    </span>
+                  </div>
+                )}
                 {vendor.rating && (
                   <div className="flex items-center gap-3 text-charcoal-grey/70">
                     <FiStar className="w-5 h-5 text-golden-amber" />

@@ -21,16 +21,16 @@ const DashboardRecentOrders = ({ orders }) => {
               <FiPackage className="w-6 h-6 text-deep-maroon" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-charcoal-grey">Recent Orders</h2>
+        <h2 className="text-2xl font-black text-charcoal-grey">Recent Orders</h2>
               <p className="text-sm text-charcoal-grey/60">Latest platform activity</p>
             </div>
           </div>
-          <Link to="/admin/orders">
+        <Link to="/admin/orders">
             <Button variant="secondary" size="sm" className="group">
               <span>View All</span>
               <FiArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </Link>
+          </Button>
+        </Link>
         </div>
         
         {/* Quick Stats */}
@@ -61,11 +61,25 @@ const DashboardRecentOrders = ({ orders }) => {
       </div>
 
       {/* Orders Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {orders.map((order) => (
-          <AdminOrderCard key={order.id} order={order} />
-        ))}
-      </div>
+      {orders.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {orders.map((order) => {
+            const orderId = order._id || order.id;
+            return <AdminOrderCard key={orderId} order={order} />;
+          })}
+        </div>
+      ) : (
+        <Card className="p-12 text-center">
+          <FiPackage className="w-16 h-16 text-charcoal-grey/30 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-charcoal-grey mb-2">No Recent Orders</h3>
+          <p className="text-charcoal-grey/60 mb-4">Orders will appear here once customers start placing them</p>
+          <Link to="/admin/orders">
+            <Button variant="secondary" size="md">
+              View All Orders
+            </Button>
+          </Link>
+        </Card>
+      )}
     </div>
   );
 };

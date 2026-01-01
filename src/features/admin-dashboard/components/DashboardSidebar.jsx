@@ -14,19 +14,16 @@ const DashboardSidebar = ({ isMobileOpen, onClose }) => {
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Get user name from auth user or default
+  // Get user name from useAuth
   const userName = user?.name || "Admin";
   const userEmail = user?.email || "";
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      // Use the proper logout function from useAuth which clears all auth data
       await logout();
-      // Navigation is handled by the logout function
     } catch (error) {
       console.error("Logout error:", error);
-      setIsLoggingOut(false);
     }
   };
 
@@ -72,7 +69,7 @@ const DashboardSidebar = ({ isMobileOpen, onClose }) => {
             <div className="bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 rounded-xl p-4 border border-charcoal-grey/10">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                  {userName.charAt(0).toUpperCase()}
+                  {(userName || 'A').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-charcoal-grey truncate">{userName}</p>

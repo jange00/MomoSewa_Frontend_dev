@@ -9,19 +9,50 @@ import {
   FiLogOut,
   FiX
 } from "react-icons/fi";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Logo from "../../../common/Logo";
 import { DASHBOARD_MENU_ITEMS } from "../constants/menuItems";
 import { useAuth } from "../../../hooks/useAuth";
+import { useGet } from "../../../hooks/useApi";
+import { API_ENDPOINTS } from "../../../api/config";
 
 const DashboardSidebar = ({ isMobileOpen, onClose }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Fetch user profile to get profile picture
+  const { data: profileData } = useGet(
+    'customer-sidebar-profile',
+    `${API_ENDPOINTS.USERS}/profile`,
+    { 
+      showErrorToast: false, // Don't show error if endpoint doesn't exist
+      retry: false,
+      enabled: !!user, // Only fetch if user is authenticated
+    }
+  );
 
   // Get user name from auth user or default
   const userName = user?.name || "Customer";
   const userEmail = user?.email || "";
+
+  // Get profile picture from multiple possible locations
+  const profilePicture = useMemo(() => {
+    return profileData?.data?.profilePicture || 
+           profileData?.data?.user?.profilePicture ||
+           user?.profilePicture ||
+           user?.avatar ||
+           user?.image ||
+           null;
+  }, [profileData, user]);
+
+  // Reset image error when profile picture changes
+  useEffect(() => {
+    if (profilePicture) {
+      setImageError(false);
+    }
+  }, [profilePicture]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -76,9 +107,22 @@ const DashboardSidebar = ({ isMobileOpen, onClose }) => {
             {/* User Profile Card */}
             <div className="bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 rounded-xl p-4 border border-charcoal-grey/10">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
+                {profilePicture && !imageError ? (
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-deep-maroon/10 to-golden-amber/10 flex items-center justify-center flex-shrink-0 border-2 border-deep-maroon/20 shadow-lg">
+                    <img 
+                      src={profilePicture} 
+                      alt={userName}
+                      className="w-full h-full object-cover"
+                      onError={() => {
+                        setImageError(true);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-lg shadow-lg flex-shrink-0">
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-charcoal-grey truncate">{userName}</p>
                   {userEmail && (

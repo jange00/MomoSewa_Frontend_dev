@@ -33,10 +33,13 @@ const UserDetailModal = ({ user, isOpen, onClose, onUpdate }) => {
   };
 
   const handleSave = () => {
-    // TODO: Replace with actual API call
-    onUpdate?.(user.id, formData);
-    toast.success("User updated successfully!");
-    setIsEditing(false);
+    const userId = user._id || user.id;
+    if (!userId) {
+      toast.error("User ID is required");
+      return;
+    }
+    onUpdate?.(userId, formData);
+    // Note: Success toast is handled by the parent component
   };
 
   return (
@@ -56,10 +59,10 @@ const UserDetailModal = ({ user, isOpen, onClose, onUpdate }) => {
           {/* User Avatar */}
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-3xl">
-              {user.name.charAt(0).toUpperCase()}
+              {(user.name || 'U').charAt(0).toUpperCase()}
             </div>
             <div>
-              <h3 className="text-xl font-black text-charcoal-grey">{user.name}</h3>
+              <h3 className="text-xl font-black text-charcoal-grey">{user.name || 'User'}</h3>
               <span className="inline-block mt-2 px-3 py-1 rounded-lg bg-charcoal-grey/10 text-charcoal-grey/70 text-sm font-medium">
                 {user.role}
               </span>

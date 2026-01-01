@@ -1,6 +1,5 @@
 import Card from "../../ui/cards/Card";
 import { FiTrendingUp, FiUsers, FiShoppingBag, FiPackage, FiCreditCard } from "react-icons/fi";
-import { AnalyticsSkeleton, Skeleton } from "../../ui/skeletons";
 import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 
@@ -31,14 +30,8 @@ const AdminAnalyticsPage = () => {
   };
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div>
-            <Skeleton variant="title" className="mb-2 w-64" />
-            <Skeleton variant="text" className="w-96" />
-          </div>
-          <AnalyticsSkeleton />
-        </div>
+      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
       </div>
     );
   }
