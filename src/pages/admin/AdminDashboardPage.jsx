@@ -8,6 +8,7 @@ import { FiTrendingUp, FiActivity, FiAlertCircle, FiCheckCircle } from "react-ic
 import { useAuth } from "../../hooks/useAuth";
 import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
+import { formatOrderId } from "../../utils/formatOrderId";
 
 // Helper function to format time ago
 const formatTimeAgo = (dateString) => {
@@ -147,11 +148,10 @@ const AdminDashboardPage = () => {
 
     // Add recent orders (last 3)
     orders.slice(0, 3).forEach(order => {
-      const orderId = order._id || order.id;
       const customerName = order.customer?.name || order.customerId?.name || 'Customer';
       activities.push({
         type: "order",
-        message: `New order #${orderId?.substring(0, 8)} placed by ${customerName}`,
+        message: `New order #${formatOrderId(order)} placed by ${customerName}`,
         time: formatTimeAgo(order.createdAt || order.date),
         status: "success",
         timestamp: new Date(order.createdAt || order.date || Date.now()),

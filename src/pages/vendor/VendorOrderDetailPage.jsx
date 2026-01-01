@@ -27,6 +27,7 @@ import { OrderCardSkeleton } from "../../ui/skeletons";
 import { useGet, usePatch } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
+import { formatOrderId } from "../../utils/formatOrderId";
 
 const VendorOrderDetailPage = () => {
   const { id } = useParams();
@@ -377,7 +378,7 @@ const VendorOrderDetailPage = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-black text-charcoal-grey mb-2">
-                Order #{order.orderId || order._id || order.id}
+                Order #{formatOrderId(order)}
               </h1>
               <p className="text-charcoal-grey/60 flex items-center gap-2">
                 <FiClock className="w-4 h-4" />
@@ -822,7 +823,7 @@ const VendorOrderDetailPage = () => {
                     </h3>
                     <p className="text-sm text-charcoal-grey/70 flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-golden-amber"></span>
-                      Order #{order.orderId || order._id || order.id}
+                      Order #{formatOrderId(order)}
                     </p>
                   </div>
                   <button

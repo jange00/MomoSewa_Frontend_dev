@@ -11,6 +11,7 @@ import { API_ENDPOINTS } from "../../api/config";
 import { useSocket } from "../../hooks/useSocket";
 import { markAsRead, markAllAsRead } from "../../services/notificationService";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatOrderId } from "../../utils/formatOrderId";
 
 const VendorNotificationsPage = () => {
   const [filter, setFilter] = useState("all"); // all, unread, read
@@ -276,8 +277,8 @@ const VendorNotificationsPage = () => {
     }
     const orderId = getOrderId(notification);
     if (orderId) {
-      // If it's a MongoDB ObjectId, show first 8 chars
-      return orderId.length > 12 ? orderId.substring(0, 8) : orderId;
+      // Use formatOrderId utility to make it human-readable
+      return formatOrderId(null, orderId);
     }
     return 'Order';
   };

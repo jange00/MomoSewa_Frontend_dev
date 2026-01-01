@@ -22,6 +22,7 @@ import { API_ENDPOINTS } from "../../api/config";
 import { useSocket } from "../../hooks/useSocket";
 import { markAsRead, markAllAsRead } from "../../services/notificationService";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatOrderId } from "../../utils/formatOrderId";
 
 // Helper function to format time ago
 const formatTimeAgo = (dateString) => {
@@ -100,6 +101,19 @@ const getNotificationIcon = (notification) => {
   }
   
   return FiBell;
+};
+
+// Helper function to extract and format order ID from notification
+const getOrderDisplayId = (notification) => {
+  // Check data field first (API structure)
+  if (notification.data?.orderIdStr) {
+    return notification.data.orderIdStr;
+  }
+  const orderId = notification.data?.orderId || notification.orderId || notification.order?._id || notification.order?.id;
+  if (orderId) {
+    return formatOrderId(null, orderId);
+  }
+  return null;
 };
 
 const CustomerNotificationsPage = () => {
@@ -466,6 +480,18 @@ const CustomerNotificationsPage = () => {
                               </p>
                               <div className="flex items-center gap-3 text-sm text-charcoal-grey/60">
                                 <span>{timeAgo}</span>
+                                {(() => {
+                                  const orderDisplayId = getOrderDisplayId(notification);
+                                  if (orderDisplayId) {
+                                    return (
+                                      <>
+                                        <span>•</span>
+                                        <span className="font-semibold">Order #{orderDisplayId}</span>
+                                      </>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                                 {notification.type && (
                                   <>
                                     <span>•</span>

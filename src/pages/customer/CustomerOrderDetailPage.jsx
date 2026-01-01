@@ -23,6 +23,7 @@ import { useGet, usePost } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
 import { createReview } from "../../services/reviewService";
+import { formatOrderId } from "../../utils/formatOrderId";
 
 const CustomerOrderDetailPage = () => {
   const { id } = useParams();
@@ -391,8 +392,8 @@ const CustomerOrderDetailPage = () => {
 
   const status = statusColors[order.status] || statusColors.pending;
   const statusLabel = statusLabels[order.status] || order.status;
-  // Use human-readable orderId if available, fallback to _id or id
-  const orderIdFromOrder = order.orderId || order._id || order.id;
+  // Get human-readable order ID for display
+  const displayOrderId = formatOrderId(order);
   const orderDate = order.date || order.createdAt || 'Recently';
   // orderItems is already defined above
 
@@ -521,7 +522,7 @@ const CustomerOrderDetailPage = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-black text-charcoal-grey mb-2">
-                Order #{orderIdFromOrder || orderId}
+                Order #{displayOrderId}
               </h1>
               <p className="text-charcoal-grey/60 flex items-center gap-2">
                 <FiClock className="w-4 h-4" />

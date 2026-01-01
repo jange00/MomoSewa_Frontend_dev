@@ -21,6 +21,7 @@ import Button from "../../ui/buttons/Button";
 import Badge from "../../ui/badges/Badge";
 import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
+import { formatOrderId } from "../../utils/formatOrderId";
 
 // Helper function to format date
 const formatDate = (dateString) => {
@@ -313,7 +314,7 @@ const AdminOrderDetailPage = () => {
     );
   }
 
-  const orderId = processedOrder.orderId;
+  const displayOrderId = formatOrderId(processedOrder);
   const orderDate = processedOrder.orderDate;
   const orderItems = processedOrder.orderItems;
 
@@ -409,7 +410,7 @@ const AdminOrderDetailPage = () => {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-black text-charcoal-grey">Order #{orderId}</h1>
+              <h1 className="text-3xl font-black text-charcoal-grey">Order #{displayOrderId}</h1>
               <p className="text-charcoal-grey/70 mt-1">Order Details</p>
             </div>
           </div>

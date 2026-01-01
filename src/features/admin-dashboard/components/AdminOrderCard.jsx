@@ -3,6 +3,7 @@ import Card from "../../../ui/cards/Card";
 import Button from "../../../ui/buttons/Button";
 import { FiClock, FiUser, FiShoppingBag, FiArrowRight, FiPackage } from "react-icons/fi";
 import { Link } from "react-router-dom";
+import { formatOrderId } from "../../../utils/formatOrderId";
 
 const AdminOrderCard = ({ order }) => {
   // Track image load errors for each item
@@ -120,6 +121,7 @@ const AdminOrderCard = ({ order }) => {
 
   const status = statusColors[order.status] || statusColors.pending;
   const statusLabel = statusLabels[order.status] || order.status;
+  const displayOrderId = formatOrderId(order);
   const orderId = order._id || order.id;
   const orderDate = order.date || order.createdAt || 'Recently';
   const orderItems = order.items || order.orderItems || [];
@@ -135,7 +137,7 @@ const AdminOrderCard = ({ order }) => {
               <FiPackage className={`w-5 h-5 ${status.text}`} />
             </div>
             <div className="flex-1">
-              <h3 className="font-black text-charcoal-grey text-lg mb-1">Order #{orderId}</h3>
+              <h3 className="font-black text-charcoal-grey text-lg mb-1">Order #{displayOrderId}</h3>
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${status.dot} animate-pulse`}></span>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${status.bg} ${status.text} ${status.border} border`}>

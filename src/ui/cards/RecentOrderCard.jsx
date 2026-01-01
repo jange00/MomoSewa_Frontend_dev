@@ -2,6 +2,7 @@ import Card from "./Card";
 import Button from "../buttons/Button";
 import { FiClock } from "react-icons/fi";
 import { Link } from "react-router-dom";
+import { formatOrderId } from "../../utils/formatOrderId";
 
 const RecentOrderCard = ({ order, basePath = "/customer/orders" }) => {
   const statusColors = {
@@ -22,11 +23,13 @@ const RecentOrderCard = ({ order, basePath = "/customer/orders" }) => {
 
   const status = statusColors[order.status] || statusColors.pending;
   const statusLabel = statusLabels[order.status] || order.status;
-  // Use human-readable orderId if available, fallback to _id or id
-  const orderId = order.orderId || order._id || order.id;
+  // Get human-readable order ID
+  const displayOrderId = formatOrderId(order);
+  // Use _id or id for navigation (backend expects MongoDB ObjectId)
+  const orderIdForNav = order._id || order.id;
 
   // Don't render if order ID is missing
-  if (!orderId) {
+  if (!orderIdForNav) {
     return null;
   }
 
@@ -35,7 +38,7 @@ const RecentOrderCard = ({ order, basePath = "/customer/orders" }) => {
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-bold text-charcoal-grey">Order #{orderId}</h3>
+            <h3 className="font-bold text-charcoal-grey">Order #{displayOrderId}</h3>
             <span
               className={`px-3 py-1 rounded-full text-xs font-semibold border ${status.bg} ${status.text} ${status.border}`}
             >
@@ -76,7 +79,7 @@ const RecentOrderCard = ({ order, basePath = "/customer/orders" }) => {
       {/* Actions */}
       <div className="flex items-center gap-3 pt-4 border-t border-charcoal-grey/10">
         {/* Use _id for navigation since backend expects MongoDB ObjectId in URL */}
-        <Link to={`${basePath}/${order._id || order.id || orderId}`} className="flex-1">
+        <Link to={`${basePath}/${orderIdForNav}`} className="flex-1">
           <Button variant="secondary" size="sm" className="w-full">
             View Details
           </Button>
@@ -88,7 +91,7 @@ const RecentOrderCard = ({ order, basePath = "/customer/orders" }) => {
             className="flex-1"
             onClick={() => {
               // Navigate to order detail page where reorder confirmation will be shown
-              window.location.href = `${basePath}/${order._id || order.id || orderId}`;
+              window.location.href = `${basePath}/${orderIdForNav}`;
             }}
           >
             Reorder

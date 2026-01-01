@@ -4,6 +4,7 @@ import Button from "../../../ui/buttons/Button";
 import ConfirmDialog from "../../../ui/modals/ConfirmDialog";
 import { FiClock, FiUser, FiPhone, FiMapPin, FiCheck, FiX, FiPackage, FiTruck } from "react-icons/fi";
 import { Link } from "react-router-dom";
+import { formatOrderId } from "../../../utils/formatOrderId";
 
 // Component for individual order item with image
 const OrderItemPreview = ({ item }) => {
@@ -105,7 +106,7 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
       setConfirmDialog({
         isOpen: true,
         title: "Cancel Order",
-        message: `Are you sure you want to cancel order #${order.orderId || order._id || order.id}? This action cannot be undone.`,
+        message: `Are you sure you want to cancel order #${formatOrderId(order)}? This action cannot be undone.`,
         onConfirm: () => {
           if (onStatusUpdate) {
             onStatusUpdate(orderIdForApi, newStatus);
@@ -132,7 +133,7 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-bold text-charcoal-grey">Order #{order.orderId || order._id || order.id}</h3>
+            <h3 className="font-bold text-charcoal-grey">Order #{formatOrderId(order)}</h3>
             <span
               className={`px-3 py-1 rounded-full text-xs font-semibold border ${status.bg} ${status.text} ${status.border}`}
             >
