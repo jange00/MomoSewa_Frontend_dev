@@ -1,16 +1,18 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Card from "../../ui/cards/Card";
 import Button from "../../ui/buttons/Button";
-import { FiSearch, FiMail, FiPhone, FiCalendar, FiShoppingBag, FiStar, FiDownload } from "react-icons/fi";
+import { FiSearch, FiMail, FiPhone, FiCalendar, FiShoppingBag, FiStar, FiDownload, FiX, FiRefreshCw, FiFilter } from "react-icons/fi";
 import VendorDetailModal from "../../features/admin-dashboard/modals/VendorDetailModal";
 import toast from "react-hot-toast";
-import { useGet, usePatch } from "../../hooks/useApi";
+import { useGet, usePut } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
+import { VendorCardSkeleton, StatsCardSkeleton } from "../../ui/skeletons";
 
 const AdminVendorsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [sortBy, setSortBy] = useState("newest"); // newest, oldest, name, business
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -182,15 +184,58 @@ const AdminVendorsPage = () => {
     console.log('AdminVendorsPage - all statuses:', [...new Set(vendors.map(v => v.status))]);
   }
 
-  const filteredVendors = vendors.filter((vendor) => {
-    const matchesSearch =
-      (vendor.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (vendor.businessName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (vendor.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (vendor.phone || '').includes(searchQuery);
-    const matchesStatus = selectedStatus === "all" || vendor.status === selectedStatus;
-    return matchesSearch && matchesStatus;
-  });
+  // Calculate stats
+  const stats = useMemo(() => {
+    return {
+      total: vendors.length,
+      active: vendors.filter((v) => v.status === "active").length,
+      pending: vendors.filter((v) => v.status === "pending").length,
+      rejected: vendors.filter((v) => v.status === "rejected").length,
+    };
+  }, [vendors]);
+
+  // Filter and sort vendors
+  const filteredVendors = useMemo(() => {
+    let filtered = vendors.filter((vendor) => {
+      const matchesSearch =
+        (vendor.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (vendor.businessName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (vendor.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (vendor.phone || '').includes(searchQuery);
+      const matchesStatus = selectedStatus === "all" || vendor.status === selectedStatus;
+      return matchesSearch && matchesStatus;
+    });
+
+    // Sort vendors
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          const dateA = new Date(a.createdAt || a.applicationDate || 0);
+          const dateB = new Date(b.createdAt || b.applicationDate || 0);
+          return dateB - dateA;
+        case "oldest":
+          const dateAOld = new Date(a.createdAt || a.applicationDate || 0);
+          const dateBOld = new Date(b.createdAt || b.applicationDate || 0);
+          return dateAOld - dateBOld;
+        case "name":
+          return (a.name || '').localeCompare(b.name || '');
+        case "business":
+          return (a.businessName || '').localeCompare(b.businessName || '');
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [vendors, searchQuery, selectedStatus, sortBy]);
+
+  const hasActiveFilters = searchQuery || selectedStatus !== "all" || sortBy !== "newest";
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedStatus("all");
+    setSortBy("newest");
+  };
 
   const handleApproveVendor = async (vendorId) => {
     try {
@@ -404,12 +449,91 @@ const AdminVendorsPage = () => {
     }
   };
 
+  // Vendor update mutation
+  const updateVendorMutation = usePut(
+    'admin-vendors',
+    `${API_ENDPOINTS.ADMIN}/vendors`,
+    { showSuccessToast: true, showErrorToast: true }
+  );
+
+  const handleUpdateVendor = async (vendorId, updatedData) => {
+    try {
+      const vendorIdValue = vendorId || selectedVendor?._id || selectedVendor?.id;
+      if (!vendorIdValue) {
+        toast.error("Vendor ID is required");
+        return;
+      }
+
+      // Try updating via admin endpoint first
+      try {
+        await apiClient.put(
+          `${API_ENDPOINTS.ADMIN}/vendors/${vendorIdValue}`,
+          updatedData
+        );
+        toast.success("Vendor updated successfully!");
+        refetch(); // Refresh the vendors list
+        setIsModalOpen(false);
+        setSelectedVendor(null);
+      } catch (apiError) {
+        // Fallback to vendors endpoint
+        try {
+          await apiClient.put(
+            `${API_ENDPOINTS.VENDORS}/${vendorIdValue}`,
+            updatedData
+          );
+          toast.success("Vendor updated successfully!");
+          refetch();
+          setIsModalOpen(false);
+          setSelectedVendor(null);
+        } catch (fallbackError) {
+          throw fallbackError;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update vendor:", error);
+      toast.error(error.response?.data?.message || "Failed to update vendor");
+    }
+  };
+
+  // Show loading state with skeletons
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon mx-auto mb-4"></div>
-          <p className="text-charcoal-grey/70">Loading vendors...</p>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="h-9 w-64 bg-charcoal-grey/10 rounded-lg animate-pulse mb-2"></div>
+              <div className="h-5 w-48 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+            </div>
+            <div className="flex gap-2">
+              <div className="h-10 w-24 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+              <div className="h-10 w-32 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* Filters Skeleton */}
+          <Card className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 h-11 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+              <div className="flex gap-2">
+                <div className="h-11 w-16 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+                <div className="h-11 w-20 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+                <div className="h-11 w-24 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+                <div className="h-11 w-32 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Stats Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <StatsCardSkeleton count={4} />
+          </div>
+
+          {/* Vendors Grid Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <VendorCardSkeleton count={6} />
+          </div>
         </div>
       </div>
     );
@@ -447,22 +571,33 @@ const AdminVendorsPage = () => {
     <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-charcoal-grey">Vendor Management</h1>
             <p className="text-charcoal-grey/70 mt-1">Manage all platform vendors</p>
           </div>
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() => {
-              // Export functionality
-              toast.success("Export feature coming soon!");
-            }}
-          >
-            <FiDownload className="w-4 h-4 mr-2" />
-            Export Data
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => refetch()}
+              className="flex items-center gap-2"
+            >
+              <FiRefreshCw className="w-4 h-4" />
+              Refresh
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                // Export functionality
+                toast.success("Export feature coming soon!");
+              }}
+            >
+              <FiDownload className="w-4 h-4 mr-2" />
+              Export Data
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -475,10 +610,18 @@ const AdminVendorsPage = () => {
                 placeholder="Search vendors by name, business, email, or phone..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-2.5 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2"
+                className="w-full pl-12 pr-12 py-2.5 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-charcoal-grey/60 hover:text-charcoal-grey"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button
                 variant={selectedStatus === "all" ? "primary" : "ghost"}
                 size="md"
@@ -500,34 +643,76 @@ const AdminVendorsPage = () => {
               >
                 Pending
               </Button>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none bg-white border border-charcoal-grey/12 rounded-xl px-4 py-2.5 pr-10 text-charcoal-grey focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 hover:bg-charcoal-grey/2 transition-all cursor-pointer"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="name">Sort by Name</option>
+                  <option value="business">Sort by Business</option>
+                </select>
+                <FiFilter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-charcoal-grey/60 pointer-events-none" />
+              </div>
             </div>
           </div>
+          {hasActiveFilters && (
+            <div className="mt-4 flex items-center justify-between pt-4 border-t border-charcoal-grey/10">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-charcoal-grey/70">Active filters:</span>
+                {searchQuery && (
+                  <span className="px-2.5 py-1 bg-golden-amber/10 text-golden-amber rounded-lg text-xs font-medium">
+                    Search: {searchQuery}
+                  </span>
+                )}
+                {selectedStatus !== "all" && (
+                  <span className="px-2.5 py-1 bg-deep-maroon/10 text-deep-maroon rounded-lg text-xs font-medium">
+                    Status: {selectedStatus}
+                  </span>
+                )}
+                {sortBy !== "newest" && (
+                  <span className="px-2.5 py-1 bg-charcoal-grey/10 text-charcoal-grey rounded-lg text-xs font-medium">
+                    Sort: {sortBy}
+                  </span>
+                )}
+              </div>
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <FiX className="w-4 h-4 mr-1" />
+                Clear All
+              </Button>
+            </div>
+          )}
         </Card>
 
         {/* Stats Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <Card className="p-4 text-center">
+          <Card className="p-4 text-center bg-gradient-to-br from-charcoal-grey/5 to-transparent border-charcoal-grey/10">
             <p className="text-sm text-charcoal-grey/60 mb-1">Total Vendors</p>
-            <p className="text-2xl font-black text-charcoal-grey">{vendors.length}</p>
+            <p className="text-2xl font-black text-charcoal-grey">{stats.total}</p>
           </Card>
           <Card className="p-4 text-center bg-gradient-to-br from-green-50 to-transparent border-green-200">
             <p className="text-sm text-charcoal-grey/60 mb-1">Active</p>
-            <p className="text-2xl font-black text-green-600">
-              {vendors.filter((v) => v.status === "active").length}
-            </p>
+            <p className="text-2xl font-black text-green-600">{stats.active}</p>
           </Card>
           <Card className="p-4 text-center bg-gradient-to-br from-yellow-50 to-transparent border-yellow-200">
             <p className="text-sm text-charcoal-grey/60 mb-1">Pending Review</p>
-            <p className="text-2xl font-black text-yellow-600">
-              {vendors.filter((v) => v.status === "pending").length}
-            </p>
+            <p className="text-2xl font-black text-yellow-600">{stats.pending}</p>
           </Card>
-          <Card className="p-4 text-center">
+          <Card className="p-4 text-center bg-gradient-to-br from-red-50 to-transparent border-red-200">
             <p className="text-sm text-charcoal-grey/60 mb-1">Rejected</p>
-            <p className="text-2xl font-black text-red-600">
-              {vendors.filter((v) => v.status === "rejected").length}
-            </p>
+            <p className="text-2xl font-black text-red-600">{stats.rejected}</p>
           </Card>
+        </div>
+
+        {/* Results Count */}
+        <div className="flex items-center justify-between text-sm text-charcoal-grey/70">
+          <p>
+            Showing <span className="font-bold text-charcoal-grey">{filteredVendors.length}</span> of{" "}
+            <span className="font-bold text-charcoal-grey">{vendors.length}</span> vendors
+            {hasActiveFilters && " (filtered)"}
+          </p>
         </div>
 
         {/* Pending Vendors Alert */}
@@ -560,189 +745,234 @@ const AdminVendorsPage = () => {
 
         {/* Vendors Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredVendors.map((vendor) => {
-              const vendorId = vendor._id || vendor.id;
-              // Check if vendor applied recently (within last 24 hours)
-              const isNew = vendor.applicationDate && 
-                (new Date() - new Date(vendor.applicationDate)) < 24 * 60 * 60 * 1000;
-              
-              return (
-                <Card key={vendorId} className={`p-6 relative ${vendor.status === "pending" ? "border-l-4 border-yellow-500" : ""}`}>
-                  {isNew && vendor.status === "pending" && (
-                    <div className="absolute top-2 right-2">
-                      <span className="px-2 py-1 rounded-full bg-red-500 text-white text-xs font-bold animate-pulse">
-                        NEW
-                      </span>
+          {filteredVendors.map((vendor) => {
+            const vendorId = vendor._id || vendor.id;
+            const vendorImage = vendor.profilePicture || vendor.avatar || vendor.image || vendor.userId?.profilePicture;
+            const joinDate = vendor.joinDate || (vendor.createdAt ? new Date(vendor.createdAt).toLocaleDateString() : null);
+            const appliedDate = vendor.applicationDate || (vendor.createdAt ? new Date(vendor.createdAt).toLocaleDateString() : null);
+            
+            // Check if vendor applied recently (within last 24 hours)
+            const isNew = vendor.applicationDate && 
+              (new Date() - new Date(vendor.applicationDate)) < 24 * 60 * 60 * 1000;
+            
+            // Get status badge styling
+            const getStatusBadgeClass = () => {
+              if (vendor.status === "active") return "bg-green-50 text-green-600 border border-green-200";
+              if (vendor.status === "pending") return "bg-yellow-50 text-yellow-600 border border-yellow-200";
+              return "bg-red-50 text-red-600 border border-red-200";
+            };
+            
+            return (
+              <Card 
+                key={vendorId} 
+                className={`p-6 hover:shadow-xl transition-all duration-300 group ${
+                  vendor.status === "pending" 
+                    ? "border-l-4 border-l-yellow-500 hover:border-l-yellow-600" 
+                    : "border-l-4 border-l-golden-amber/20 hover:border-l-golden-amber"
+                }`}
+              >
+                {isNew && vendor.status === "pending" && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <span className="px-2 py-1 rounded-full bg-red-500 text-white text-xs font-bold animate-pulse">
+                      NEW
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    {/* Profile Image/Avatar */}
+                    {vendorImage ? (
+                      <div className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-deep-maroon/10 to-golden-amber/10 flex items-center justify-center flex-shrink-0 border-2 border-golden-amber/20">
+                        <img 
+                          src={vendorImage} 
+                          alt={vendor.businessName || vendor.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            const initial = (vendor.name || vendor.businessName || 'V').charAt(0).toUpperCase();
+                            e.target.parentElement.innerHTML = `<span class="text-white font-bold text-lg">${initial}</span>`;
+                            e.target.parentElement.className = "w-14 h-14 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-lg";
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-lg">
+                        {(vendor.name || vendor.businessName || 'V').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-charcoal-grey text-lg truncate">{vendor.businessName || vendor.name || 'Vendor'}</h3>
+                      {vendor.name && vendor.name !== vendor.businessName && (
+                        <p className="text-xs text-charcoal-grey/60 truncate">{vendor.name}</p>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`text-xs px-2.5 py-1 rounded-lg font-semibold flex-shrink-0 ${getStatusBadgeClass()}`}>
+                    {vendor.status}
+                  </span>
+                </div>
+                
+                <div className="space-y-2.5 mb-4 pb-4 border-b border-charcoal-grey/10">
+                  <div className="flex items-center gap-2 text-sm text-charcoal-grey/70 group-hover:text-charcoal-grey transition-colors">
+                    <div className="w-8 h-8 rounded-lg bg-deep-maroon/5 flex items-center justify-center flex-shrink-0">
+                      <FiMail className="w-4 h-4 text-deep-maroon" />
+                    </div>
+                    <span className="truncate flex-1">{vendor.email}</span>
+                  </div>
+                  {vendor.phone && (
+                    <div className="flex items-center gap-2 text-sm text-charcoal-grey/70 group-hover:text-charcoal-grey transition-colors">
+                      <div className="w-8 h-8 rounded-lg bg-golden-amber/5 flex items-center justify-center flex-shrink-0">
+                        <FiPhone className="w-4 h-4 text-golden-amber" />
+                      </div>
+                      <span>{vendor.phone}</span>
                     </div>
                   )}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-deep-maroon to-golden-amber flex items-center justify-center text-white font-bold text-lg">
-                    {(vendor.name || vendor.businessName || 'V').charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-charcoal-grey">{vendor.businessName || vendor.name || 'Vendor'}</h3>
-                    {vendor.name && vendor.name !== vendor.businessName && (
-                      <p className="text-xs text-charcoal-grey/60">{vendor.name}</p>
-                    )}
-                  </div>
-                </div>
-                <span
-                  className={`text-xs px-2 py-1 rounded-lg font-medium ${
-                    vendor.status === "active"
-                      ? "bg-green-50 text-green-600"
-                      : vendor.status === "pending"
-                      ? "bg-yellow-50 text-yellow-600"
-                      : "bg-red-50 text-red-600"
-                  }`}
-                >
-                  {vendor.status}
-                </span>
-              </div>
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-sm text-charcoal-grey/70">
-                  <FiMail className="w-4 h-4" />
-                  <span className="truncate">{vendor.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-charcoal-grey/70">
-                  <FiPhone className="w-4 h-4" />
-                  <span>{vendor.phone}</span>
-                </div>
-                {vendor.status === "pending" ? (
-                  <>
-                    {(vendor.createdAt || vendor.joinDate || vendor.applicationDate) && (
-                      <div className="flex items-center gap-2 text-sm text-charcoal-grey/70">
-                        <FiCalendar className="w-4 h-4" />
-                        <span>
-                          Applied {vendor.joinDate || vendor.applicationDate || 
-                            (vendor.createdAt ? new Date(vendor.createdAt).toLocaleDateString() : 'Recently')}
-                        </span>
-                      </div>
-                    )}
-                    {vendor.businessAddress && (
-                      <div className="flex items-center gap-2 text-sm text-charcoal-grey/70">
-                        <span className="font-semibold">Location:</span>
-                        <span className="truncate">{vendor.businessAddress}</span>
-                      </div>
-                    )}
-                    {vendor.businessLicense && (
-                      <div className="flex items-center gap-2 text-sm text-charcoal-grey/70">
-                        <span className="font-semibold">License:</span>
-                        <span>{vendor.businessLicense}</span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {(vendor.createdAt || vendor.joinDate) && (
-                      <div className="flex items-center gap-2 text-sm text-charcoal-grey/70">
-                        <FiCalendar className="w-4 h-4" />
-                        <span>
-                          Joined {vendor.joinDate || 
-                            (vendor.createdAt ? new Date(vendor.createdAt).toLocaleDateString() : 'N/A')}
-                        </span>
-                      </div>
-                    )}
-                    {(vendor.totalOrders !== undefined) && (
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-charcoal-grey/70">
-                          <FiShoppingBag className="w-4 h-4" />
-                          <span>{vendor.totalOrders || 0} orders</span>
-                        </div>
-                        {vendor.rating && (
-                          <div className="flex items-center gap-1 text-golden-amber">
-                            <FiStar className="w-4 h-4 fill-current" />
-                            <span className="font-semibold">{vendor.rating}</span>
+                  {vendor.status === "pending" ? (
+                    <>
+                      {appliedDate && (
+                        <div className="flex items-center gap-2 text-sm text-charcoal-grey/70 group-hover:text-charcoal-grey transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center flex-shrink-0">
+                            <FiCalendar className="w-4 h-4 text-yellow-600" />
                           </div>
-                        )}
-                      </div>
-                    )}
-                    {(vendor.totalRevenue !== undefined) && (
-                      <div className="flex items-center gap-2 text-sm text-charcoal-grey/70">
-                        <span className="font-semibold">Revenue:</span>
-                        <span>Rs. {(vendor.totalRevenue || 0).toLocaleString()}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => {
-                    setSelectedVendor(vendor);
-                    setIsModalOpen(true);
-                  }}
-                >
-                  {vendor.status === "pending" ? "Review" : "View Details"}
-                </Button>
-                {vendor.status === "pending" ? (
+                          <span>Applied {appliedDate}</span>
+                        </div>
+                      )}
+                      {vendor.businessAddress && (
+                        <div className="flex items-start gap-2 text-sm text-charcoal-grey/70 group-hover:text-charcoal-grey transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-charcoal-grey/5 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <FiShoppingBag className="w-4 h-4 text-charcoal-grey/60" />
+                          </div>
+                          <div className="flex-1">
+                            <span className="font-semibold">Location: </span>
+                            <span className="truncate block">{vendor.businessAddress}</span>
+                          </div>
+                        </div>
+                      )}
+                      {vendor.businessLicense && (
+                        <div className="flex items-center gap-2 text-sm text-charcoal-grey/70 group-hover:text-charcoal-grey transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-charcoal-grey/5 flex items-center justify-center flex-shrink-0">
+                            <FiShoppingBag className="w-4 h-4 text-charcoal-grey/60" />
+                          </div>
+                          <div className="flex-1">
+                            <span className="font-semibold">License: </span>
+                            <span>{vendor.businessLicense}</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {joinDate && (
+                        <div className="flex items-center gap-2 text-sm text-charcoal-grey/70 group-hover:text-charcoal-grey transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-charcoal-grey/5 flex items-center justify-center flex-shrink-0">
+                            <FiCalendar className="w-4 h-4 text-charcoal-grey/60" />
+                          </div>
+                          <span>Joined {joinDate}</span>
+                        </div>
+                      )}
+                      {(vendor.totalOrders !== undefined && vendor.totalOrders > 0) && (
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2 text-charcoal-grey/70 group-hover:text-charcoal-grey transition-colors">
+                            <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                              <FiShoppingBag className="w-4 h-4 text-green-600" />
+                            </div>
+                            <span className="font-semibold">{vendor.totalOrders} {vendor.totalOrders === 1 ? 'order' : 'orders'}</span>
+                          </div>
+                          {vendor.rating && (
+                            <div className="flex items-center gap-1 text-golden-amber">
+                              <FiStar className="w-4 h-4 fill-current" />
+                              <span className="font-semibold">{vendor.rating}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {(vendor.totalRevenue !== undefined && vendor.totalRevenue > 0) && (
+                        <div className="flex items-center gap-2 text-sm text-charcoal-grey/70 group-hover:text-charcoal-grey transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-golden-amber/5 flex items-center justify-center flex-shrink-0">
+                            <FiStar className="w-4 h-4 text-golden-amber" />
+                          </div>
+                          <div className="flex-1">
+                            <span className="font-semibold">Revenue: </span>
+                            <span>Rs. {(vendor.totalRevenue || 0).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
                   <Button 
-                    variant="primary" 
+                    variant="ghost" 
                     size="sm" 
-                    className="flex-1"
+                    className="flex-1 group-hover:bg-deep-maroon/5 group-hover:text-deep-maroon transition-colors"
                     onClick={() => {
                       setSelectedVendor(vendor);
                       setIsModalOpen(true);
                     }}
                   >
-                    Approve
+                    {vendor.status === "pending" ? "Review" : "View Details"}
                   </Button>
-                ) : (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => {
-                    setSelectedVendor(vendor);
-                    setIsModalOpen(true);
-                  }}
-                >
-                  Edit
-                </Button>
-                )}
-              </div>
-            </Card>
+                  {vendor.status === "pending" ? (
+                    <Button 
+                      variant="primary" 
+                      size="sm" 
+                      className="flex-1 group-hover:bg-deep-maroon group-hover:text-white transition-colors"
+                      onClick={() => {
+                        setSelectedVendor(vendor);
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      Approve
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      className="flex-1 group-hover:bg-deep-maroon group-hover:text-white transition-colors"
+                      onClick={() => {
+                        setSelectedVendor(vendor);
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </div>
+              </Card>
             );
-            })}
+          })}
         </div>
 
         {filteredVendors.length === 0 && (
           <Card className="p-12 text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-bold text-charcoal-grey mb-2">
-              {vendors.length === 0 
-                ? 'No Vendors Found' 
-                : 'No Vendors Match Your Filters'}
-            </h3>
-            <p className="text-charcoal-grey/60 mb-4">
-              {vendors.length === 0 
-                ? 'There are no vendors registered yet. Vendors will appear here once they register.' 
-                : 'Try adjusting your search or filter criteria.'}
-            </p>
-            {vendors.length === 0 && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg text-left max-w-md mx-auto">
-                <p className="text-sm text-blue-800 font-semibold mb-2">💡 Tip:</p>
-                <p className="text-sm text-blue-700">
-                  When vendors register, they will appear here with a "pending" status. 
-                  You can then review and approve their applications.
-                </p>
-              </div>
-            )}
-            {(searchQuery || selectedStatus !== "all") && vendors.length > 0 && (
-              <Button 
-                variant="secondary" 
-                onClick={() => {
-                  setSearchQuery("");
-                  setSelectedStatus("all");
-                }}
-                className="mt-4"
-              >
-                Clear Filters
-              </Button>
-            )}
+            <div className="max-w-md mx-auto">
+              <FiShoppingBag className="w-16 h-16 text-charcoal-grey/30 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-charcoal-grey mb-2">
+                {vendors.length === 0 
+                  ? 'No Vendors Found' 
+                  : 'No Vendors Match Your Filters'}
+              </h3>
+              <p className="text-charcoal-grey/60 mb-4">
+                {vendors.length === 0 
+                  ? 'There are no vendors registered yet. Vendors will appear here once they register.' 
+                  : 'Try adjusting your search or filter criteria.'}
+              </p>
+              {vendors.length === 0 && (
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg text-left">
+                  <p className="text-sm text-blue-800 font-semibold mb-2">💡 Tip:</p>
+                  <p className="text-sm text-blue-700">
+                    When vendors register, they will appear here with a "pending" status. 
+                    You can then review and approve their applications.
+                  </p>
+                </div>
+              )}
+              {hasActiveFilters && (
+                <Button variant="secondary" onClick={clearFilters} className="mt-4">
+                  Clear Filters
+                </Button>
+              )}
+            </div>
           </Card>
         )}
       </div>
@@ -755,16 +985,7 @@ const AdminVendorsPage = () => {
           setIsModalOpen(false);
           setSelectedVendor(null);
         }}
-        onUpdate={async (vendorId, updatedData) => {
-          try {
-            // TODO: Implement vendor update API call
-            await refetch();
-            setIsModalOpen(false);
-            setSelectedVendor(null);
-          } catch (error) {
-            console.error("Failed to update vendor:", error);
-          }
-        }}
+        onUpdate={handleUpdateVendor}
         onApprove={handleApproveVendor}
         onReject={handleRejectVendor}
       />

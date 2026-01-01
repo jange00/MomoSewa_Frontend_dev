@@ -37,10 +37,9 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, onUpdate, onApprove, onRej
   const vendorId = vendor._id || vendor.id;
 
   const handleSave = () => {
-    // TODO: Replace with actual API call
     onUpdate?.(vendorId, formData);
-    toast.success("Vendor updated successfully!");
     setIsEditing(false);
+    // Don't show toast here - let the parent handle it
   };
 
   const handleApprove = () => {

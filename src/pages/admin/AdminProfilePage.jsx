@@ -8,6 +8,7 @@ import { FiSave, FiUser, FiMail, FiPhone, FiLock } from "react-icons/fi";
 import { useAuth } from "../../hooks/useAuth";
 import { useGet, usePut } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
+import { ProfileSkeleton } from "../../ui/skeletons";
 
 const AdminProfilePage = () => {
   const { user } = useAuth();
@@ -76,8 +77,10 @@ const AdminProfilePage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-4xl mx-auto">
+          <ProfileSkeleton />
+        </div>
       </div>
     );
   }

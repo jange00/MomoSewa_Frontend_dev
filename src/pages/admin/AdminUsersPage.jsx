@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { useGet, usePut } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
+import { StatsCardSkeleton, UserCardSkeleton } from "../../ui/skeletons";
 
 const AdminUsersPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -99,10 +100,41 @@ const AdminUsersPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon mx-auto mb-4"></div>
-          <p className="text-charcoal-grey/70">Loading users...</p>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="h-9 w-64 bg-charcoal-grey/10 rounded-lg animate-pulse mb-2"></div>
+              <div className="h-5 w-48 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+            </div>
+            <div className="flex gap-2">
+              <div className="h-10 w-24 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+              <div className="h-10 w-32 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* Filters Skeleton */}
+          <Card className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 h-11 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+              <div className="flex gap-2">
+                <div className="h-11 w-16 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+                <div className="h-11 w-24 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+                <div className="h-11 w-20 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Stats Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <StatsCardSkeleton count={4} />
+          </div>
+
+          {/* Users Grid Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <UserCardSkeleton count={6} />
+          </div>
         </div>
       </div>
     );

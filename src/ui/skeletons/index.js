@@ -6,4 +6,6 @@ export { default as TableSkeleton } from "./TableSkeleton";
 export { default as ProfileSkeleton } from "./ProfileSkeleton";
 export { default as NotificationSkeleton } from "./NotificationSkeleton";
 export { default as AnalyticsSkeleton } from "./AnalyticsSkeleton";
+export { default as VendorCardSkeleton } from "./VendorCardSkeleton";
+export { default as UserCardSkeleton } from "./UserCardSkeleton";
 

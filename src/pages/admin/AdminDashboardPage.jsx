@@ -206,10 +206,33 @@ const AdminDashboardPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon mx-auto mb-4"></div>
-          <p className="text-charcoal-grey/70">Loading dashboard...</p>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Welcome Skeleton */}
+          <div className="h-32 bg-charcoal-grey/10 rounded-2xl animate-pulse"></div>
+          
+          {/* Stats Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-32 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+            ))}
+          </div>
+          
+          {/* Quick Actions Skeleton */}
+          <div>
+            <div className="h-8 w-48 bg-charcoal-grey/10 rounded-lg animate-pulse mb-6"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-24 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Recent Orders & Activity Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 h-96 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+            <div className="h-96 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+          </div>
         </div>
       </div>
     );

@@ -6,6 +6,7 @@ import { useGet, usePatch, useDelete } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import { useSocket } from "../../hooks/useSocket";
 import apiClient from "../../api/client";
+import { NotificationSkeleton } from "../../ui/skeletons";
 
 const AdminNotificationsPage = () => {
   // Fetch notifications from API
@@ -91,8 +92,20 @@ const AdminNotificationsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon"></div>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-9 w-64 bg-charcoal-grey/10 rounded-lg animate-pulse mb-2"></div>
+              <div className="h-5 w-48 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+            </div>
+            <div className="h-10 w-40 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+          </div>
+          
+          {/* Notifications Skeleton */}
+          <NotificationSkeleton count={5} />
+        </div>
       </div>
     );
   }

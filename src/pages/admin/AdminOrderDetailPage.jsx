@@ -225,10 +225,57 @@ const AdminOrderDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6 lg:p-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-deep-maroon mx-auto mb-4"></div>
-          <p className="text-charcoal-grey/70">Loading order details...</p>
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="h-12 w-64 bg-charcoal-grey/10 rounded-lg animate-pulse mb-2"></div>
+          
+          {/* Order Summary Skeleton */}
+          <Card className="p-6">
+            <div className="h-8 w-48 bg-charcoal-grey/10 rounded-lg animate-pulse mb-6"></div>
+            <div className="space-y-4">
+              <div className="h-6 w-full bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+              <div className="h-6 w-3/4 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+              <div className="h-6 w-1/2 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+            </div>
+          </Card>
+
+          {/* Order Items Skeleton */}
+          <Card className="p-6">
+            <div className="h-8 w-48 bg-charcoal-grey/10 rounded-lg animate-pulse mb-6"></div>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-4 p-4 border border-charcoal-grey/10 rounded-lg">
+                  <div className="w-20 h-20 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-5 w-3/4 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+                    <div className="h-4 w-1/2 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+                  </div>
+                  <div className="h-6 w-20 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Customer & Delivery Info Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="p-6">
+              <div className="h-8 w-48 bg-charcoal-grey/10 rounded-lg animate-pulse mb-6"></div>
+              <div className="space-y-3">
+                <div className="h-5 w-full bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+                <div className="h-5 w-3/4 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+                <div className="h-5 w-1/2 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="h-8 w-48 bg-charcoal-grey/10 rounded-lg animate-pulse mb-6"></div>
+              <div className="space-y-3">
+                <div className="h-5 w-full bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+                <div className="h-5 w-3/4 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+                <div className="h-5 w-1/2 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
     );
