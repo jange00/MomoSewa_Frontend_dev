@@ -3,12 +3,14 @@ import { FiMenu, FiBell, FiSearch } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useGet } from "../../../hooks/useApi";
 import { API_ENDPOINTS } from "../../../api/config";
+import { useQueryClient } from "@tanstack/react-query";
 
 const DashboardHeader = ({ onMenuClick }) => {
   const [notificationCount, setNotificationCount] = useState(0);
+  const queryClient = useQueryClient();
 
   // Fetch unread notification count from API
-  const { data: unreadCountData } = useGet(
+  const { data: unreadCountData, refetch: refetchUnreadCount } = useGet(
     'admin-notification-unread-count',
     `${API_ENDPOINTS.NOTIFICATIONS}/unread-count`,
     { 
@@ -17,23 +19,30 @@ const DashboardHeader = ({ onMenuClick }) => {
     }
   );
 
-  // Update count from API or event
+  // Update count from API
   useEffect(() => {
     if (unreadCountData?.data?.count !== undefined) {
       setNotificationCount(unreadCountData.data.count);
     }
+  }, [unreadCountData]);
 
-    // Listen for updates from notification pages
+  // Listen for updates from notification pages and socket
+  useEffect(() => {
     const handleUpdate = () => {
-      // Refetch will happen automatically via React Query
+      // Invalidate and refetch unread count
+      queryClient.invalidateQueries({ queryKey: ['admin-notification-unread-count'] });
+      refetchUnreadCount();
     };
 
+    // Listen for custom events
     window.addEventListener("adminNotificationsUpdated", handleUpdate);
+    window.addEventListener("socketNotification", handleUpdate);
 
     return () => {
       window.removeEventListener("adminNotificationsUpdated", handleUpdate);
+      window.removeEventListener("socketNotification", handleUpdate);
     };
-  }, [unreadCountData]);
+  }, [queryClient, refetchUnreadCount]);
 
   return (
     <header className="sticky top-0 z-30 bg-white/98 backdrop-blur-xl border-b border-charcoal-grey/10 shadow-sm">

@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { FiBell, FiCheck, FiPackage, FiStar, FiShoppingBag, FiX, FiTruck, FiCheckCircle } from "react-icons/fi";
+import { FiBell, FiCheck, FiPackage, FiStar, FiShoppingBag, FiX, FiTruck, FiCheckCircle, FiRefreshCw, FiFilter } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import Card from "../../ui/cards/Card";
 import Badge from "../../ui/badges/Badge";
+import Button from "../../ui/buttons/Button";
 import { NotificationSkeleton, Skeleton } from "../../ui/skeletons";
 import { useGet } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
@@ -12,16 +13,18 @@ import { markAsRead, markAllAsRead } from "../../services/notificationService";
 import { useQueryClient } from "@tanstack/react-query";
 
 const VendorNotificationsPage = () => {
+  const [filter, setFilter] = useState("all"); // all, unread, read
+  const [sortBy, setSortBy] = useState("newest"); // newest, oldest
   const [isMarkingRead, setIsMarkingRead] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const queryClient = useQueryClient();
 
   // Fetch notifications from API
-  const { data: notificationsData, isLoading, refetch } = useGet(
+  const { data: notificationsData, isLoading, error, refetch } = useGet(
     'vendor-notifications',
     API_ENDPOINTS.NOTIFICATIONS,
-    { showErrorToast: true }
+    { showErrorToast: false }
   );
 
   // Update notifications when API data changes
@@ -100,7 +103,87 @@ const VendorNotificationsPage = () => {
     }
   };
 
-  const unreadCount = notifications.filter((n) => !(n.isRead || n.read || false)).length;
+  const clearFilters = () => {
+    setFilter("all");
+    setSortBy("newest");
+  };
+
+  const hasActiveFilters = filter !== "all" || sortBy !== "newest";
+
+  const allNotifications = notifications;
+  const unreadCount = allNotifications.filter((n) => !(n.isRead || n.read || false)).length;
+  const readCount = allNotifications.filter((n) => n.isRead || n.read).length;
+
+  // Filter and sort notifications
+  const filteredNotifications = useMemo(() => {
+    let filtered = allNotifications;
+
+    // Apply filter
+    if (filter === "unread") {
+      filtered = filtered.filter((n) => !(n.isRead || n.read));
+    } else if (filter === "read") {
+      filtered = filtered.filter((n) => n.isRead || n.read);
+    }
+
+    // Apply sort
+    filtered = [...filtered].sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.date || a.time || 0);
+      const dateB = new Date(b.createdAt || b.date || b.time || 0);
+      return sortBy === "newest" ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
+  }, [allNotifications, filter, sortBy]);
+
+  // Helper function to get date section (Today, Yesterday, This Week, Older)
+  const getDateSection = (dateString) => {
+    if (!dateString) return "Older";
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const thisWeek = new Date(today);
+      thisWeek.setDate(thisWeek.getDate() - 7);
+      
+      const notificationDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      
+      if (notificationDate.getTime() === today.getTime()) {
+        return "Today";
+      } else if (notificationDate.getTime() === yesterday.getTime()) {
+        return "Yesterday";
+      } else if (notificationDate >= thisWeek) {
+        return "This Week";
+      } else {
+        return "Older";
+      }
+    } catch (error) {
+      return "Older";
+    }
+  };
+
+  // Group notifications by date section
+  const groupedNotifications = useMemo(() => {
+    const groups = {
+      "Today": [],
+      "Yesterday": [],
+      "This Week": [],
+      "Older": []
+    };
+
+    filteredNotifications.forEach((notification) => {
+      const section = getDateSection(notification.createdAt || notification.date || notification.time);
+      if (groups[section]) {
+        groups[section].push(notification);
+      } else {
+        groups["Older"].push(notification);
+      }
+    });
+
+    // Return only sections that have notifications
+    return Object.entries(groups).filter(([_, notifications]) => notifications.length > 0);
+  }, [filteredNotifications]);
 
   // Helper function to get notification icon and color based on type
   const getNotificationIcon = (notification) => {
@@ -536,35 +619,208 @@ const VendorNotificationsPage = () => {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-9 w-64 bg-charcoal-grey/10 rounded-lg animate-pulse mb-2"></div>
+              <div className="h-5 w-48 bg-charcoal-grey/10 rounded-lg animate-pulse"></div>
+            </div>
+            <div className="h-10 w-40 bg-charcoal-grey/10 rounded-xl animate-pulse"></div>
+          </div>
+          
+          {/* Notifications Skeleton */}
+          <NotificationSkeleton count={5} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <Card className="p-8 text-center">
+            <div className="text-red-500 text-5xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold text-charcoal-grey mb-2">Error Loading Notifications</h2>
+            <p className="text-charcoal-grey/70 mb-4">
+              {error.message || 'Failed to load notifications. Please check your connection and try again.'}
+            </p>
+            <Button variant="primary" onClick={() => refetch()}>
+              <FiRefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl lg:text-4xl font-black text-charcoal-grey mb-2">
-              Notifications
-            </h1>
-            <p className="text-charcoal-grey/70">
+            <h1 className="text-3xl font-black text-charcoal-grey">Notifications</h1>
+            <p className="text-charcoal-grey/70 mt-1">
               {unreadCount > 0
-                ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}`
+                ? `${unreadCount} unread ${unreadCount === 1 ? 'notification' : 'notifications'}` 
                 : "All caught up!"}
             </p>
           </div>
-          {unreadCount > 0 && (
-            <button
-              onClick={handleMarkAllAsRead}
-              disabled={markingAllRead || isLoading}
-              className="px-4 py-2 rounded-xl bg-charcoal-grey/5 text-charcoal-grey/70 hover:bg-charcoal-grey/10 font-semibold text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => refetch()}
+              className="flex items-center gap-2"
+              disabled={isLoading}
             >
-              {markingAllRead ? 'Marking...' : 'Mark all as read'}
-            </button>
-          )}
+              <FiRefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            {unreadCount > 0 && (
+              <Button 
+                variant="primary" 
+                size="md" 
+                onClick={handleMarkAllAsRead}
+                disabled={markingAllRead}
+              >
+                <FiCheck className="w-4 h-4 mr-2" />
+                Mark All as Read
+              </Button>
+            )}
+          </div>
         </div>
 
+        {/* Stats Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="p-4 text-center bg-gradient-to-br from-charcoal-grey/5 to-transparent border-charcoal-grey/10">
+            <p className="text-sm text-charcoal-grey/60 mb-1">Total</p>
+            <p className="text-2xl font-black text-charcoal-grey">{allNotifications.length}</p>
+          </Card>
+          <Card className="p-4 text-center bg-gradient-to-br from-deep-maroon/5 to-transparent border-deep-maroon/10">
+            <p className="text-sm text-charcoal-grey/60 mb-1">Unread</p>
+            <p className="text-2xl font-black text-deep-maroon">{unreadCount}</p>
+          </Card>
+          <Card className="p-4 text-center bg-gradient-to-br from-green-50 to-transparent border-green-200">
+            <p className="text-sm text-charcoal-grey/60 mb-1">Read</p>
+            <p className="text-2xl font-black text-green-600">{readCount}</p>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <Card className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <FiFilter className="w-5 h-5 text-charcoal-grey/60" />
+              <span className="text-sm font-semibold text-charcoal-grey">Filter:</span>
+              <Button
+                variant={filter === "all" ? "primary" : "ghost"}
+                size="sm"
+                onClick={() => setFilter("all")}
+              >
+                All
+              </Button>
+              <Button
+                variant={filter === "unread" ? "primary" : "ghost"}
+                size="sm"
+                onClick={() => setFilter("unread")}
+              >
+                Unread
+              </Button>
+              <Button
+                variant={filter === "read" ? "primary" : "ghost"}
+                size="sm"
+                onClick={() => setFilter("read")}
+              >
+                Read
+              </Button>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap md:ml-auto">
+              <span className="text-sm font-semibold text-charcoal-grey">Sort:</span>
+              <Button
+                variant={sortBy === "newest" ? "primary" : "ghost"}
+                size="sm"
+                onClick={() => setSortBy("newest")}
+              >
+                Newest
+              </Button>
+              <Button
+                variant={sortBy === "oldest" ? "primary" : "ghost"}
+                size="sm"
+                onClick={() => setSortBy("oldest")}
+              >
+                Oldest
+              </Button>
+            </div>
+          </div>
+          {hasActiveFilters && (
+            <div className="mt-4 pt-4 border-t border-charcoal-grey/10 flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-charcoal-grey/70">Active filters:</span>
+                {filter !== "all" && (
+                  <span className="px-2.5 py-1 bg-deep-maroon/10 text-deep-maroon rounded-lg text-xs font-medium">
+                    {filter}
+                  </span>
+                )}
+                {sortBy !== "newest" && (
+                  <span className="px-2.5 py-1 bg-charcoal-grey/10 text-charcoal-grey rounded-lg text-xs font-medium">
+                    Sort: {sortBy}
+                  </span>
+                )}
+              </div>
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <FiX className="w-4 h-4 mr-1" />
+                Clear
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        {/* Results Count */}
+        {filteredNotifications.length > 0 && (
+          <div className="text-sm text-charcoal-grey/70">
+            Showing <span className="font-bold text-charcoal-grey">{filteredNotifications.length}</span> of{" "}
+            <span className="font-bold text-charcoal-grey">{allNotifications.length}</span> notifications
+            {hasActiveFilters && " (filtered)"}
+          </div>
+        )}
+
         {/* Notifications List */}
-        <div className="space-y-4">
-          {notifications.map((notification) => {
+        <div className="space-y-6">
+          {filteredNotifications.length === 0 ? (
+            <Card className="p-12 text-center">
+              <FiBell className="w-16 h-16 text-charcoal-grey/30 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-charcoal-grey mb-2">
+                {allNotifications.length === 0 
+                  ? 'No Notifications' 
+                  : 'No Notifications Match Your Filters'}
+              </h3>
+              <p className="text-charcoal-grey/60 mb-4">
+                {allNotifications.length === 0 
+                  ? 'You\'re all caught up! Check back later for updates.' 
+                  : 'Try adjusting your filter or sort criteria.'}
+              </p>
+              {hasActiveFilters && (
+                <Button variant="secondary" onClick={clearFilters}>
+                  Clear Filters
+                </Button>
+              )}
+            </Card>
+          ) : (
+            groupedNotifications.map(([sectionName, sectionNotifications]) => (
+              <div key={sectionName} className="space-y-3">
+                <div className="flex items-center gap-3 mb-2">
+                  <h2 className="text-lg font-bold text-charcoal-grey">{sectionName}</h2>
+                  <div className="flex-1 h-px bg-charcoal-grey/20"></div>
+                  <span className="text-sm text-charcoal-grey/60">{sectionNotifications.length}</span>
+                </div>
+                {sectionNotifications.map((notification) => {
             const notificationId = notification._id || notification.id;
             const isRead = notification.isRead || notification.read;
             const { icon: NotificationIcon, color, bg } = getNotificationIcon(notification);
@@ -586,25 +842,31 @@ const VendorNotificationsPage = () => {
 
             const NotificationContent = (
               <Card
-                key={notificationId || `notification-${notifications.indexOf(notification)}`}
-                className={`p-6 transition-all duration-200 ${
-                  !isRead ? "border-l-4 border-l-deep-maroon bg-deep-maroon/5" : ""
-                } ${isClickable ? "hover:shadow-md cursor-pointer" : ""}`}
+                key={notificationId || `notification-${filteredNotifications.indexOf(notification)}`}
+                className={`p-6 transition-all duration-300 hover:shadow-lg ${
+                  !isRead 
+                    ? "border-l-4 border-l-deep-maroon bg-deep-maroon/5 hover:bg-deep-maroon/10" 
+                    : "hover:bg-charcoal-grey/5"
+                } ${isClickable ? "cursor-pointer" : ""}`}
               >
                 <div className="flex items-start gap-4">
-                  <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center flex-shrink-0 border border-charcoal-grey/10`}>
+                  <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center flex-shrink-0 border border-charcoal-grey/10 ${
+                    !isRead ? 'ring-2 ring-deep-maroon/20' : ''
+                  }`}>
                     <NotificationIcon className={`w-6 h-6 ${color}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4 mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-1 flex-wrap">
-                          <h3 className="font-bold text-charcoal-grey">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className={`font-bold text-charcoal-grey ${!isRead ? 'text-lg' : ''}`}>
                             {notificationContent.title}
                           </h3>
                           {!isRead && (
-                            <Badge variant="primary" className="text-xs">New</Badge>
+                            <span className="w-2 h-2 rounded-full bg-deep-maroon flex-shrink-0"></span>
                           )}
+                        </div>
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           {orderId && (
                             <Badge variant="default" className="text-xs">
                               Order #{orderDisplayId}
@@ -631,11 +893,11 @@ const VendorNotificationsPage = () => {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-charcoal-grey/70 text-sm mb-1 font-medium">
+                        <p className="text-charcoal-grey/70 mt-1 mb-2">
                           {notificationContent.message}
                         </p>
                         {notificationContent.subtitle && (
-                          <p className="text-xs text-charcoal-grey/60 mt-1">
+                          <p className="text-xs text-charcoal-grey/60 mt-1 mb-2">
                             {notificationContent.subtitle}
                           </p>
                         )}
@@ -644,23 +906,27 @@ const VendorNotificationsPage = () => {
                             Click to view details →
                           </p>
                         )}
+                        <div className="flex items-center gap-3 text-sm text-charcoal-grey/60 mt-2">
+                          <span>{formatNotificationDate(notificationDate)}</span>
                       </div>
-                      <div className="text-xs text-charcoal-grey/60 whitespace-nowrap">
-                        {formatNotificationDate(notificationDate)}
                       </div>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {!isRead && (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleMarkAsRead(notification);
                         }}
+                        className="hover:bg-green-50 hover:text-green-600"
+                        title="Mark as read"
                         disabled={isMarkingRead}
-                        className="text-sm text-deep-maroon hover:text-deep-maroon/80 flex items-center gap-2 mt-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FiCheck className="w-4 h-4" />
-                        Mark as read
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -678,21 +944,10 @@ const VendorNotificationsPage = () => {
 
             return NotificationContent;
           })}
+              </div>
+            ))
+          )}
         </div>
-
-        {notifications.length === 0 && (
-          <Card className="p-12">
-            <div className="text-center">
-              <div className="text-6xl mb-4">🔔</div>
-              <h3 className="text-xl font-bold text-charcoal-grey mb-2">
-                No notifications
-              </h3>
-              <p className="text-charcoal-grey/60">
-                You're all caught up! Check back later for updates.
-              </p>
-            </div>
-          </Card>
-        )}
       </div>
     </div>
   );
