@@ -121,26 +121,75 @@ const AdminNotificationsPage = () => {
   const queryClient = useQueryClient();
 
   // Fetch notifications from API
+  // Use regular notifications endpoint (admin-specific endpoint doesn't exist on backend)
   const { data: notificationsData, isLoading, error, refetch } = useGet(
     'admin-notifications',
     API_ENDPOINTS.NOTIFICATIONS,
-    { showErrorToast: false }
+    { 
+      showErrorToast: false,
+      retry: false,
+      retryOnMount: false,
+    }
   );
 
   const allNotifications = useMemo(() => {
-    const notificationsList = notificationsData?.data?.notifications || notificationsData?.data || [];
+    // Use notifications data directly
+    const data = notificationsData;
+    
+    // Handle API response structure: { success: true, data: { notifications: [...] } }
+    // Or: { success: true, data: [...] }
+    // Or: { data: { notifications: [...] } }
+    let notificationsList = [];
+    
+    if (data) {
+      // Check if data has success field and data property
+      if (data.success !== undefined && data.data) {
+        // Standard API response format
+        if (Array.isArray(data.data.notifications)) {
+          notificationsList = data.data.notifications;
+        } else if (Array.isArray(data.data)) {
+          notificationsList = data.data;
+        } else if (data.data.notification && Array.isArray(data.data.notification)) {
+          notificationsList = data.data.notification;
+        }
+      } else if (data.data) {
+        // Response without success field but has data
+        if (Array.isArray(data.data.notifications)) {
+          notificationsList = data.data.notifications;
+        } else if (Array.isArray(data.data)) {
+          notificationsList = data.data;
+        } else if (data.data.notification && Array.isArray(data.data.notification)) {
+          notificationsList = data.data.notification;
+        }
+      } else if (Array.isArray(data)) {
+        // Data is directly an array
+        notificationsList = data;
+      }
+    }
+    
     return Array.isArray(notificationsList) ? notificationsList : [];
   }, [notificationsData]);
+
+  const isLoadingNotifications = isLoading;
 
   // Listen to real-time notifications via Socket.IO
   useSocket({
     onNotification: (data) => {
-      refetch();
-      // Invalidate unread count query (use admin-specific key)
-      queryClient.invalidateQueries({ queryKey: ['admin-notification-unread-count'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
-      // Trigger event for header update
-      window.dispatchEvent(new Event("adminNotificationsUpdated"));
+      // Check if notification is for admin
+      const isAdminNotification = !data.recipientRole || 
+                                  data.recipientRole === 'Admin' || 
+                                  data.recipientRole === 'admin' ||
+                                  data.type === 'system' ||
+                                  data.type === 'admin';
+      
+      if (isAdminNotification) {
+        refetch();
+        // Invalidate unread count query (use admin-specific key)
+        queryClient.invalidateQueries({ queryKey: ['admin-notification-unread-count'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+        // Trigger event for header update
+        window.dispatchEvent(new Event("adminNotificationsUpdated"));
+      }
     },
   });
 
@@ -235,7 +284,12 @@ const AdminNotificationsPage = () => {
 
   const hasActiveFilters = filter !== "all" || sortBy !== "newest";
 
-  if (isLoading) {
+  // Refetch function
+  const handleRefetch = () => {
+    refetch();
+  };
+
+  if (isLoadingNotifications) {
     return (
       <div className="min-h-screen p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
@@ -255,7 +309,11 @@ const AdminNotificationsPage = () => {
     );
   }
 
-  if (error) {
+  // Only show error if it's not a 404 (which might be expected)
+  const is404Error = error?.status === 404 || error?.response?.status === 404;
+  const shouldShowError = error && !is404Error && !isLoadingNotifications;
+  
+  if (shouldShowError) {
     return (
       <div className="min-h-screen p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
@@ -265,7 +323,12 @@ const AdminNotificationsPage = () => {
             <p className="text-charcoal-grey/70 mb-4">
               {error.message || 'Failed to load notifications. Please check your connection and try again.'}
             </p>
-            <Button variant="primary" onClick={() => refetch()}>
+            <div className="text-sm text-charcoal-grey/60 mb-4 p-4 bg-charcoal-grey/5 rounded-lg">
+              <p className="font-semibold mb-2">Debug Info:</p>
+              <p>Endpoint: {API_ENDPOINTS.NOTIFICATIONS}</p>
+              <p>Error: {error.message || 'Unknown error'}</p>
+            </div>
+            <Button variant="primary" onClick={handleRefetch}>
               <FiRefreshCw className="w-4 h-4 mr-2" />
               Retry
             </Button>
@@ -292,11 +355,11 @@ const AdminNotificationsPage = () => {
             <Button
               variant="secondary"
               size="md"
-              onClick={() => refetch()}
+              onClick={handleRefetch}
               className="flex items-center gap-2"
-              disabled={isLoading}
+              disabled={isLoadingNotifications}
             >
-              <FiRefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <FiRefreshCw className={`w-4 h-4 ${isLoadingNotifications ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           {unreadCount > 0 && (
@@ -418,7 +481,7 @@ const AdminNotificationsPage = () => {
               </h3>
               <p className="text-charcoal-grey/60 mb-4">
                 {allNotifications.length === 0 
-                  ? 'You\'re all caught up! New notifications will appear here.' 
+                  ? 'You\'re all caught up! New notifications will appear here when there are system updates, new orders, vendor applications, or other admin-related events.' 
                   : 'Try adjusting your filter or sort criteria.'}
               </p>
               {hasActiveFilters && (

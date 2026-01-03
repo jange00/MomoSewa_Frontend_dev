@@ -51,3 +51,4 @@ const VendorCardSkeleton = ({ count = 1 }) => {
 export default VendorCardSkeleton;
 
 
+
