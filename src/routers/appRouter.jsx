@@ -18,6 +18,7 @@ import CartPage from "../pages/CartPage";
 import CheckoutPage from "../pages/CheckoutPage";
 import CheckoutSuccessPage from "../pages/CheckoutSuccessPage";
 import CheckoutFailurePage from "../pages/CheckoutFailurePage";
+import PaymentVerifyPage from "../pages/PaymentVerifyPage";
 import AboutPage from "../pages/AboutPage";
 import ContactPage from "../pages/ContactPage";
 
@@ -118,6 +119,10 @@ export const router = createBrowserRouter([
       {
         path: "/checkout/failure",
         element: <CheckoutFailurePage />,
+      },
+      {
+        path: "/payment/verify",
+        element: <PaymentVerifyPage />,
       },
       {
         path: "/vendor/application-submitted",

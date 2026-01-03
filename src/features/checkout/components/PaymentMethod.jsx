@@ -17,7 +17,7 @@ const PaymentMethod = ({ selectedMethod, onSelect }) => {
       color: "from-purple-500 to-purple-600",
     },
     {
-      id: "cash",
+      id: "cash-on-delivery",
       name: "Cash on Delivery",
       icon: FiShoppingBag,
       description: "Pay when you receive",

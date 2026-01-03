@@ -38,8 +38,18 @@ export const useDeliveryFee = () => {
       return DEFAULT_SETTINGS;
     }
     
-    // If there's an error (other than 404), use defaults
-    if (isError && !(error?.status === 404 || error?.response?.status === 404)) {
+    // If there's an error, check the status code
+    // 404 = endpoint doesn't exist
+    // 422 = validation error (endpoint exists but expects different format)
+    // Both are acceptable - we'll use defaults silently
+    if (isError && error) {
+      const errorStatus = error?.status || error?.response?.status;
+      // For 404 or 422, use defaults silently (expected behavior)
+      if (errorStatus === 404 || errorStatus === 422) {
+        // Don't log anything - these are expected errors when endpoint doesn't exist or format differs
+        return DEFAULT_SETTINGS;
+      }
+      // For other unexpected errors, log as warning
       if (process.env.NODE_ENV === 'development') {
         console.warn('Error fetching delivery fee settings, using defaults:', error);
       }

@@ -95,6 +95,72 @@ const CheckoutPage = () => {
   // Fetch delivery fee settings
   const { calculateDeliveryFee, getAmountNeededForFreeDelivery } = useDeliveryFee();
 
+  // Helper function to submit eSewa payment form
+  const submitEsewaForm = (formData, paymentUrl) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('=== SUBMITTING ESEWA FORM ===');
+      console.log('Payment URL:', paymentUrl);
+      console.log('Form Data:', formData);
+      console.log('Form Data Keys:', Object.keys(formData));
+    }
+
+    // Validate inputs
+    if (!paymentUrl) {
+      console.error('❌ Payment URL is missing');
+      toast.error('Payment URL is missing. Please contact support.');
+      return;
+    }
+
+    if (!formData || Object.keys(formData).length === 0) {
+      console.error('❌ Form data is missing or empty');
+      toast.error('Payment form data is missing. Please contact support.');
+      return;
+    }
+
+    // Create a form element
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = paymentUrl; // e.g., 'https://esewa.com.np/epay/main'
+    form.target = '_blank'; // Open in new window/tab so user can see what's happening
+
+    // Add all form fields
+    // eSewa expects all values to be strings
+    Object.keys(formData).forEach(key => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      // Convert value to string (eSewa requires string values)
+      input.value = String(formData[key] || '');
+      form.appendChild(input);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`  ${key}: ${input.value} (type: ${typeof input.value})`);
+      }
+    });
+
+    // Append form to body and submit
+    document.body.appendChild(form);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Form created, submitting to new window...');
+    }
+    
+    // Show a message to the user
+    toast.success('Opening eSewa payment page in a new window...');
+    
+    // Submit form - it will open in a new window/tab
+    form.submit();
+    
+    // Clean up the form after a short delay
+    setTimeout(() => {
+      try {
+        document.body.removeChild(form);
+      } catch (e) {
+        // Form might already be removed
+      }
+    }, 1000);
+  };
+
   const subtotal = useMemo(() => {
     return cartItems.reduce((sum, item) => {
       const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
@@ -236,8 +302,8 @@ const CheckoutPage = () => {
         deliveryAddress: {
           fullName: deliveryForm.fullName,
           phone: deliveryForm.phone,
-          // Backend expects 'nearestLandmark' instead of 'address'
-          nearestLandmark: deliveryForm.address || deliveryForm.nearestLandmark,
+          address: deliveryForm.address || deliveryForm.nearestLandmark, // Required field
+          nearestLandmark: deliveryForm.address || deliveryForm.nearestLandmark, // Optional field
           city: deliveryForm.city,
           area: deliveryForm.area,
           postalCode: deliveryForm.postalCode || undefined,
@@ -316,76 +382,86 @@ const CheckoutPage = () => {
           return;
         }
         
+        // Get order total from result
+        const orderTotal = result.data?.order?.total || total;
+
         // If payment method is eSewa, initiate payment
         if (paymentMethod === 'esewa' && orderId) {
           try {
             if (process.env.NODE_ENV === 'development') {
               console.log('=== INITIATING ESEWA PAYMENT ===');
               console.log('Order ID:', orderId);
-              console.log('Order ID type:', typeof orderId);
-              console.log('Order ID length:', orderId?.length);
+              console.log('Order Total:', orderTotal);
             }
             
             // Small delay to ensure order is fully saved in database
-            // Increased delay to give backend more time to process
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            // Log exactly what we're sending to the payment endpoint
-            if (process.env.NODE_ENV === 'development') {
-              console.log('📤 Sending to payment endpoint:', {
-                endpoint: '/payments/esewa/initiate',
-                orderId: orderId,
-                orderIdType: typeof orderId,
-                orderIdLength: orderId?.length,
-                orderIdStringified: JSON.stringify(orderId),
-              });
-            }
-            
-            const paymentResult = await paymentService.initiateEsewaPayment(orderId);
+            // Initiate eSewa payment with orderId and amount
+            const paymentResult = await paymentService.initiateEsewaPayment(orderId, orderTotal);
             
             if (process.env.NODE_ENV === 'development') {
               console.log('Payment initiation result:', paymentResult);
               console.log('Payment result structure:', JSON.stringify(paymentResult, null, 2));
             }
             
-            // Check for payment URL in different possible response structures
-            const paymentUrl = paymentResult?.data?.paymentUrl || 
-                             paymentResult?.paymentUrl || 
-                             paymentResult?.data?.data?.paymentUrl ||
-                             paymentResult?.data?.data?.data?.paymentUrl;
+            // Extract formData and payment_url from response
+            // handleApiResponse returns: { success: true, data: { formData: {...}, payment_url: "..." } }
+            // So paymentResult = { success: true, data: { formData: {...}, payment_url: "..." } }
+            const paymentData = paymentResult?.data;
+            const formData = paymentData?.formData;
+            const paymentUrl = paymentData?.payment_url || paymentData?.paymentUrl;
             
-            if (paymentUrl) {
-              if (process.env.NODE_ENV === 'development') {
-                console.log('✅ Payment URL found, redirecting to:', paymentUrl);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('=== PAYMENT RESPONSE ANALYSIS ===');
+              console.log('Full paymentResult:', paymentResult);
+              console.log('paymentResult.success:', paymentResult?.success);
+              console.log('paymentResult.data:', paymentResult?.data);
+              console.log('paymentData:', paymentData);
+              console.log('formData:', formData);
+              console.log('paymentUrl:', paymentUrl);
+              if (paymentData) {
+                console.log('paymentData keys:', Object.keys(paymentData));
               }
-              
-              // Check if URL is accessible (for development/testing)
-              if (process.env.NODE_ENV === 'development' && paymentUrl.includes('uat.esewa.com.np')) {
-                // In development, show a helpful message if eSewa UAT is not accessible
-                const proceed = window.confirm(
-                  'Redirecting to eSewa payment page.\n\n' +
-                  'If you see a DNS error, it means:\n' +
-                  '1. eSewa UAT server may not be accessible from your network\n' +
-                  '2. You may need VPN or specific network access\n' +
-                  '3. This is normal in development - your integration is working!\n\n' +
-                  'Click OK to proceed, or Cancel to view your order instead.'
-                );
-                
-                if (!proceed) {
-                  // User chose to stay, navigate to order page
-                  navigate(`/customer/orders/${orderId}`);
-                  return;
-                }
+              if (formData) {
+                console.log('formData keys:', Object.keys(formData));
+                console.log('formData values:', formData);
               }
-              
-              // Redirect to eSewa payment page
-              window.location.href = paymentUrl;
-              return; // Don't navigate to order page yet
-            } else {
-              console.error("❌ Payment URL not found in response:", paymentResult);
-              toast.error("Payment URL not received. Please contact support or try again.");
-              // Navigate to order page so user can see the order and try payment later
+              console.log('===============================');
             }
+            
+            // Validate formData and paymentUrl
+            if (!formData || typeof formData !== 'object' || Object.keys(formData).length === 0) {
+              console.error("❌ Payment formData is missing, empty, or invalid:", formData);
+              console.error("Payment response structure:", {
+                paymentResult,
+                hasData: !!paymentResult?.data,
+                dataKeys: paymentResult?.data ? Object.keys(paymentResult.data) : [],
+                formDataType: typeof formData,
+                formDataKeys: formData ? Object.keys(formData) : [],
+              });
+              toast.error("Payment form data is missing or invalid. Please contact support.");
+              setIsProcessing(false);
+              return;
+            }
+            
+            if (!paymentUrl || typeof paymentUrl !== 'string') {
+              console.error("❌ Payment URL is missing or invalid:", paymentUrl);
+              toast.error("Payment URL is missing. Please contact support.");
+              setIsProcessing(false);
+              return;
+            }
+            
+            // All validation passed, submit form to eSewa
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Payment data validated, submitting form to eSewa');
+            }
+            
+            // Submit form to eSewa
+            submitEsewaForm(formData, paymentUrl);
+            // Form submission will redirect user to eSewa, so we don't need to navigate
+            setIsProcessing(false); // Reset processing state
+            return; // Exit early - form submission will redirect
           } catch (paymentError) {
             console.error("❌ Failed to initiate eSewa payment:", paymentError);
             console.error("Payment error details:", {
@@ -393,6 +469,8 @@ const CheckoutPage = () => {
               status: paymentError?.status,
               response: paymentError?.response,
             });
+            
+            setIsProcessing(false);
             
             // Check if it's a 404 (endpoint not implemented) or order not found
             if (paymentError?.status === 404) {
@@ -404,14 +482,17 @@ const CheckoutPage = () => {
             } else {
               toast.error("Failed to initiate payment. Please try again or contact support.");
             }
-            // Still navigate to order page so user can see the order
+            
+            // For eSewa payment failure, don't navigate - let user see the error and try again
+            // The order is already created with pending payment status
+            return;
           }
         }
         
-        // For cash on delivery or if payment initiation failed, navigate to order page
-        if (orderId && orderId !== 'undefined' && orderId !== 'null') {
+        // For cash-on-delivery or other payment methods, navigate to order page
+        if (paymentMethod !== 'esewa' && orderId && orderId !== 'undefined' && orderId !== 'null') {
           navigate(`/customer/orders/${orderId}`);
-        } else {
+        } else if (paymentMethod !== 'esewa') {
           console.error('Cannot navigate: orderId is invalid:', orderId);
           toast.error("Order created but order ID not found. Please check your orders page.");
           navigate('/customer/orders'); // Navigate to orders list instead
