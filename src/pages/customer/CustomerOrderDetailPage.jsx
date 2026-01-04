@@ -24,6 +24,7 @@ import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
 import { createReview } from "../../services/reviewService";
 import { formatOrderId } from "../../utils/formatOrderId";
+import { getPaymentStatusConfig, formatPaymentMethod } from "../../utils/paymentStatus";
 
 const CustomerOrderDetailPage = () => {
   const { id } = useParams();
@@ -821,11 +822,74 @@ const CustomerOrderDetailPage = () => {
                 Rs. {(order.total || order.amount || 0).toFixed(2)}
               </span>
             </div>
-            <div className="pt-3 border-t border-charcoal-grey/10">
-              <p className="text-sm text-charcoal-grey/60 mb-1">Payment Method</p>
-              <p className="font-semibold text-charcoal-grey">
-                {order.paymentMethod || order.payment?.method || 'Not specified'}
-              </p>
+            {/* Payment Information */}
+            <div className="pt-3 border-t border-charcoal-grey/10 space-y-3">
+              <div>
+                <p className="text-sm text-charcoal-grey/60 mb-1">Payment Method</p>
+                <p className="font-semibold text-charcoal-grey">
+                  {formatPaymentMethod(order.paymentMethod || order.payment?.method || 'Not specified')}
+                </p>
+              </div>
+              {order.paymentStatus && (
+                <div>
+                  <p className="text-sm text-charcoal-grey/60 mb-1">Payment Status</p>
+                  {(() => {
+                    const paymentConfig = getPaymentStatusConfig(
+                      order.paymentStatus,
+                      order.paymentMethod
+                    );
+                    return (
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${paymentConfig.bg} ${paymentConfig.text} ${paymentConfig.border}`}
+                      >
+                        {paymentConfig.icon} {paymentConfig.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+              )}
+              {/* Transaction IDs */}
+              {order.esewaTransactionId && (
+                <div>
+                  <p className="text-sm text-charcoal-grey/60 mb-1">eSewa Transaction ID</p>
+                  <p className="font-mono text-sm text-charcoal-grey/80 break-all">
+                    {order.esewaTransactionId}
+                  </p>
+                </div>
+              )}
+              {order.khaltiTransactionId && (
+                <div>
+                  <p className="text-sm text-charcoal-grey/60 mb-1">Khalti Transaction ID</p>
+                  <p className="font-mono text-sm text-charcoal-grey/80 break-all">
+                    {order.khaltiTransactionId}
+                  </p>
+                </div>
+              )}
+              {/* Payment Status Messages */}
+              {order.paymentStatus === 'pending' && order.paymentMethod !== 'cash-on-delivery' && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800 flex items-center gap-2">
+                    <span>⚠️</span>
+                    Payment is pending. Please complete the payment to confirm your order.
+                  </p>
+                </div>
+              )}
+              {order.paymentStatus === 'paid' && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800 flex items-center gap-2">
+                    <span>✅</span>
+                    Payment completed successfully.
+                  </p>
+                </div>
+              )}
+              {order.paymentStatus === 'failed' && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800 flex items-center gap-2">
+                    <span>❌</span>
+                    Payment failed. Please try again or contact support.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </Card>

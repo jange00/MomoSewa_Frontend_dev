@@ -12,8 +12,8 @@ import ConfirmDialog from "../../ui/modals/ConfirmDialog";
 import { useGet, usePost, useDelete } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
-import { PRODUCT_CATEGORIES, DEFAULT_CATEGORY, isValidCategory } from "../../common/productCategories";
-import { uploadProductImage, getSubcategories } from "../../services/productService";
+import { PRODUCT_CATEGORIES, PRODUCT_SUBCATEGORIES, DEFAULT_CATEGORY, isValidCategory, isValidSubcategory, getSubcategoryDisplayName } from "../../common/productCategories";
+import { uploadProductImage } from "../../services/productService";
 
 const VendorProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -83,7 +83,7 @@ const VendorProductsPage = () => {
     price: "",
     originalPrice: "",
     category: DEFAULT_CATEGORY,
-    subcategory: "",
+    subcategory: PRODUCT_SUBCATEGORIES[0] || "veg", // Default to first subcategory (required field)
     stock: "-1", // -1 means unlimited (backend default)
     emoji: "🥟", // Backend default emoji
     imageUrl: "",
@@ -93,70 +93,45 @@ const VendorProductsPage = () => {
   const [newProductImagePreview, setNewProductImagePreview] = useState(null);
   const [editingProductImageFile, setEditingProductImageFile] = useState(null);
   const [editingProductImagePreview, setEditingProductImagePreview] = useState(null);
+  // Subcategories are now fixed values, no need for loading states
+  // Keeping these for backward compatibility but they're always set to PRODUCT_SUBCATEGORIES
   const [availableSubcategories, setAvailableSubcategories] = useState([]);
   const [editingSubcategories, setEditingSubcategories] = useState([]);
-  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
-  const [loadingEditingSubcategories, setLoadingEditingSubcategories] = useState(false);
   const fileInputRef = useRef(null);
   const editFileInputRef = useRef(null);
 
-  // Fetch subcategories when new product category changes
+    // Set available subcategories when new product category changes
+    // Subcategories are fixed values, not fetched from API
   useEffect(() => {
-    const fetchSubcategories = async () => {
-      if (!newProduct.category || newProduct.category === "all") {
-        setAvailableSubcategories([]);
-        setNewProduct(prev => ({ ...prev, subcategory: "" }));
-        return;
-      }
+    if (!newProduct.category || newProduct.category === "all") {
+      setAvailableSubcategories([]);
+      setNewProduct(prev => ({ ...prev, subcategory: PRODUCT_SUBCATEGORIES[0] || "veg" }));
+      return;
+    }
 
-      setLoadingSubcategories(true);
-      try {
-        const response = await getSubcategories(newProduct.category);
-        const subcategories = response?.data?.subcategories || [];
-        setAvailableSubcategories(subcategories);
-        // Reset subcategory if current one is not in the new list
-        if (newProduct.subcategory && !subcategories.includes(newProduct.subcategory)) {
-          setNewProduct(prev => ({ ...prev, subcategory: "" }));
-        }
-      } catch (error) {
-        console.error("Failed to fetch subcategories:", error);
-        setAvailableSubcategories([]);
-        setNewProduct(prev => ({ ...prev, subcategory: "" }));
-      } finally {
-        setLoadingSubcategories(false);
-      }
-    };
-
-    fetchSubcategories();
+    // Use fixed list of subcategories for all categories
+    setAvailableSubcategories(PRODUCT_SUBCATEGORIES);
+    
+    // Reset subcategory if current one is not in the valid list
+    if (newProduct.subcategory && !PRODUCT_SUBCATEGORIES.includes(newProduct.subcategory.toLowerCase())) {
+      setNewProduct(prev => ({ ...prev, subcategory: PRODUCT_SUBCATEGORIES[0] || "veg" }));
+    }
   }, [newProduct.category]);
 
-  // Fetch subcategories when editing product category changes
+    // Set available subcategories when editing product category changes
+    // Subcategories are fixed values, not fetched from API
   useEffect(() => {
-    const fetchEditingSubcategories = async () => {
-      if (!editingProduct?.category || editingProduct.category === "all") {
-        setEditingSubcategories([]);
-        return;
-      }
+    if (!editingProduct?.category || editingProduct.category === "all") {
+      setEditingSubcategories([]);
+      return;
+    }
 
-      setLoadingEditingSubcategories(true);
-      try {
-        const response = await getSubcategories(editingProduct.category);
-        const subcategories = response?.data?.subcategories || [];
-        setEditingSubcategories(subcategories);
-        // Reset subcategory if current one is not in the new list
-        if (editingProduct.subcategory && !subcategories.includes(editingProduct.subcategory)) {
-          setEditingProduct(prev => ({ ...prev, subcategory: "" }));
-        }
-      } catch (error) {
-        console.error("Failed to fetch subcategories:", error);
-        setEditingSubcategories([]);
-      } finally {
-        setLoadingEditingSubcategories(false);
-      }
-    };
-
-    if (editingProduct) {
-      fetchEditingSubcategories();
+    // Use fixed list of subcategories for all categories
+    setEditingSubcategories(PRODUCT_SUBCATEGORIES);
+    
+    // Reset subcategory if current one is not in the valid list
+    if (editingProduct.subcategory && !PRODUCT_SUBCATEGORIES.includes(editingProduct.subcategory.toLowerCase())) {
+      setEditingProduct(prev => ({ ...prev, subcategory: PRODUCT_SUBCATEGORIES[0] || "veg" }));
     }
   }, [editingProduct?.category]);
 
@@ -309,8 +284,14 @@ const VendorProductsPage = () => {
   };
 
   const handleAddProduct = async () => {
-    if (!newProduct.name || !newProduct.price) {
-      toast.error("Please fill in all required fields (Name and Price)");
+    // Validate required fields with detailed checks
+    if (!newProduct.name || !newProduct.name.trim()) {
+      toast.error("Product name is required");
+      return;
+    }
+    
+    if (!newProduct.price || newProduct.price.toString().trim() === '') {
+      toast.error("Price is required");
       return;
     }
 
@@ -318,6 +299,18 @@ const VendorProductsPage = () => {
     const price = parseFloat(newProduct.price);
     if (isNaN(price) || price <= 0) {
       toast.error("Please enter a valid price greater than 0");
+      return;
+    }
+    
+    // Validate category
+    if (!newProduct.category || newProduct.category.trim() === '' || newProduct.category === 'all') {
+      toast.error("Category is required");
+      return;
+    }
+    
+    // Validate subcategory
+    if (!newProduct.subcategory || !newProduct.subcategory.trim()) {
+      toast.error("Subcategory is required");
       return;
     }
 
@@ -358,59 +351,185 @@ const VendorProductsPage = () => {
       return;
     }
 
-    // Build FormData (same pattern as profile picture upload)
-    const productFormData = new FormData();
-    
-    // Add text fields (same field names as backend expects)
-    productFormData.append('name', newProduct.name.trim());
-    productFormData.append('price', price.toString());
-    productFormData.append('category', category);
-    productFormData.append('stock', stock.toString());
-    productFormData.append('isAvailable', (newProduct.isAvailable !== undefined ? newProduct.isAvailable : true).toString());
-    
-    // Add optional text fields
-    if (newProduct.description && newProduct.description.trim()) {
-      productFormData.append('description', newProduct.description.trim());
+    // Validate subcategory (required field)
+    if (!newProduct.subcategory || !newProduct.subcategory.trim()) {
+      toast.error("Subcategory is required. Please select a subcategory.");
+      return;
     }
-    if (originalPrice !== null) {
-      productFormData.append('originalPrice', originalPrice.toString());
+    const subcategory = newProduct.subcategory.trim().toLowerCase();
+    if (!isValidSubcategory(subcategory)) {
+      toast.error(`Invalid subcategory. Please select a valid subcategory from the list.`);
+      return;
+    }
+
+    // Check if we need FormData (only if uploading an image file)
+    const hasImageFile = !!newProductImageFile;
+    
+    // Build product data object - ensure all required fields are present and correct types
+    // CRITICAL: All required fields must match backend schema exactly
+    const productData = {
+      // Required fields (must match backend schema)
+      name: String(newProduct.name.trim()), // String, required
+      price: Number(price), // Number, required (≥ 0)
+      category: String(category), // String, required - must be: "Steamed", "Fried", "Special", or "Combo"
+      subcategory: String(subcategory), // String, required - must be: "veg", "chicken", "buff", "pork", "mutton", or "seafood"
+      
+      // Optional fields with defaults
+      stock: Number(stock), // Number, default -1 (unlimited)
+      isAvailable: Boolean(newProduct.isAvailable !== undefined ? newProduct.isAvailable : true), // Boolean, default true
+    };
+    
+    // Add optional fields only if they have values
+    if (newProduct.description && newProduct.description.trim()) {
+      productData.description = String(newProduct.description.trim());
+    }
+    if (originalPrice !== null && originalPrice !== undefined) {
+      productData.originalPrice = Number(originalPrice);
     }
     if (newProduct.emoji && newProduct.emoji.trim()) {
-      productFormData.append('emoji', newProduct.emoji.trim());
-    }
-    if (newProduct.subcategory && newProduct.subcategory.trim()) {
-      productFormData.append('subcategory', newProduct.subcategory.trim());
+      productData.emoji = String(newProduct.emoji.trim());
     }
     
-    // Add image file (same field name as profile picture: 'image')
-    if (newProductImageFile) {
-      productFormData.append('image', newProductImageFile);
-      console.log('✅ Image file added to FormData:', {
-        fileName: newProductImageFile.name,
-        fileType: newProductImageFile.type,
-        fileSize: newProductImageFile.size,
-      });
-    } else if (newProduct.imageUrl && newProduct.imageUrl.trim()) {
-      // If no file but URL provided, add as image field (backend may accept URL string)
-      productFormData.append('image', newProduct.imageUrl.trim());
-      console.log('✅ Image URL added to FormData:', newProduct.imageUrl.trim());
+    // Final validation: Ensure all required fields are present and valid
+    if (!productData.name || productData.name.trim() === '') {
+      toast.error("Product name is required");
+      return;
+    }
+    if (typeof productData.price !== 'number' || isNaN(productData.price) || productData.price < 0) {
+      toast.error("Valid price is required (must be a number ≥ 0)");
+      return;
+    }
+    if (!productData.category || !isValidCategory(productData.category)) {
+      toast.error(`Valid category is required. Must be one of: ${PRODUCT_CATEGORIES.join(', ')}`);
+      return;
+    }
+    if (!productData.subcategory || !isValidSubcategory(productData.subcategory)) {
+      toast.error(`Valid subcategory is required. Must be one of: ${PRODUCT_SUBCATEGORIES.join(', ')}`);
+      return;
     }
     
-    // Debug: Verify FormData entries (same as profile picture)
-    const formDataEntries = [];
-    for (let pair of productFormData.entries()) {
-      formDataEntries.push({ 
-        key: pair[0], 
-        value: pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1] 
-      });
-    }
-    console.log('📦 FormData entries:', formDataEntries);
+    // Debug: Log product data with detailed info
+    console.log('📦 ===== PRODUCT CREATION DEBUG =====');
+    console.log('📦 Product data to send:', productData);
+    console.log('📦 Data types:', {
+      name: typeof productData.name,
+      price: typeof productData.price,
+      category: typeof productData.category,
+      subcategory: typeof productData.subcategory,
+      stock: typeof productData.stock,
+      isAvailable: typeof productData.isAvailable,
+    });
+    console.log('📦 Field values:', {
+      name: productData.name,
+      price: productData.price,
+      category: productData.category,
+      subcategory: productData.subcategory,
+      stock: productData.stock,
+      isAvailable: productData.isAvailable,
+    });
+    console.log('📦 Category validation:', {
+      category: productData.category,
+      isValid: isValidCategory(productData.category),
+      validCategories: PRODUCT_CATEGORIES,
+    });
+    console.log('📦 Subcategory validation:', {
+      subcategory: productData.subcategory,
+      isValid: isValidSubcategory(productData.subcategory),
+      validSubcategories: PRODUCT_SUBCATEGORIES,
+    });
+    console.log('📦 Has image file:', hasImageFile);
+    console.log('📦 ===================================');
 
     try {
-      // Use direct API call with FormData (same pattern as profile picture)
-      // The request interceptor will handle removing Content-Type for FormData
-      // Axios will automatically set Content-Type with boundary for FormData
-      const response = await apiClient.post(API_ENDPOINTS.PRODUCTS, productFormData);
+      let response;
+      
+      if (hasImageFile) {
+        // Use FormData when uploading an image file
+        const productFormData = new FormData();
+        
+        // Add REQUIRED fields first (in order of importance)
+        productFormData.append('name', String(productData.name));
+        productFormData.append('price', String(productData.price)); // FormData requires strings
+        productFormData.append('category', String(productData.category));
+        productFormData.append('subcategory', String(productData.subcategory));
+        
+        // Add optional fields
+        productFormData.append('stock', String(productData.stock));
+        productFormData.append('isAvailable', String(productData.isAvailable));
+        
+        if (productData.description) {
+          productFormData.append('description', String(productData.description));
+        }
+        if (productData.originalPrice !== null && productData.originalPrice !== undefined) {
+          productFormData.append('originalPrice', String(productData.originalPrice));
+        }
+        if (productData.emoji) {
+          productFormData.append('emoji', String(productData.emoji));
+        }
+        
+        // Add image file last
+        productFormData.append('image', newProductImageFile);
+        
+        console.log('✅ Image file added to FormData:', {
+          fileName: newProductImageFile.name,
+          fileType: newProductImageFile.type,
+          fileSize: newProductImageFile.size,
+        });
+        
+        // Debug: Verify FormData entries
+        const formDataEntries = [];
+        const formDataObject = {};
+        for (let pair of productFormData.entries()) {
+          const key = pair[0];
+          const value = pair[1] instanceof File ? `[File: ${pair[1].name}, ${pair[1].size} bytes]` : pair[1];
+          formDataEntries.push({ key, value });
+          formDataObject[key] = value;
+        }
+        console.log('📦 FormData entries:', formDataEntries);
+        console.log('📦 FormData entries (count):', formDataEntries.length);
+        console.log('📦 FormData as object:', formDataObject);
+        console.log('📦 Required fields check:', {
+          hasName: formDataObject.hasOwnProperty('name') && formDataObject.name !== '',
+          hasPrice: formDataObject.hasOwnProperty('price') && formDataObject.price !== '',
+          hasCategory: formDataObject.hasOwnProperty('category') && formDataObject.category !== '',
+          hasSubcategory: formDataObject.hasOwnProperty('subcategory') && formDataObject.subcategory !== '',
+          nameValue: formDataObject.name,
+          priceValue: formDataObject.price,
+          categoryValue: formDataObject.category,
+          subcategoryValue: formDataObject.subcategory,
+        });
+        
+        response = await apiClient.post(API_ENDPOINTS.PRODUCTS, productFormData);
+      } else {
+        // Use JSON when no image file (backend can parse JSON more reliably)
+        // Include image URL if provided
+        if (newProduct.imageUrl && newProduct.imageUrl.trim()) {
+          productData.image = String(newProduct.imageUrl.trim());
+        }
+        
+        console.log('📤 Sending JSON data:', productData);
+        console.log('📤 JSON stringified:', JSON.stringify(productData));
+        console.log('📤 Content-Type will be: application/json');
+        
+        // Final validation before sending
+        const requiredFields = ['name', 'price', 'category', 'subcategory'];
+        const missingFields = requiredFields.filter(field => !productData[field] && productData[field] !== 0);
+        
+        if (missingFields.length > 0) {
+          console.error('❌ Missing required fields in productData:', {
+            missingFields,
+            productData,
+            hasName: !!productData.name,
+            hasPrice: productData.price !== undefined && productData.price !== null,
+            hasCategory: !!productData.category,
+            hasSubcategory: !!productData.subcategory,
+          });
+          toast.error(`Missing required fields: ${missingFields.join(', ')}`);
+          return;
+        }
+        
+        response = await apiClient.post(API_ENDPOINTS.PRODUCTS, productData);
+      }
       
       if (response.data.success) {
         toast.success(response.data.message || "Product created successfully");
@@ -421,6 +540,7 @@ const VendorProductsPage = () => {
             price: "",
           originalPrice: "",
           category: DEFAULT_CATEGORY,
+          subcategory: PRODUCT_SUBCATEGORIES[0] || "veg", // Reset to default
           stock: "-1",
           emoji: "🥟",
             imageUrl: "",
@@ -514,7 +634,7 @@ const VendorProductsPage = () => {
       price: product.price ? product.price.toString() : "",
       originalPrice: product.originalPrice ? product.originalPrice.toString() : "",
       category: product.category || product.categoryName || DEFAULT_CATEGORY,
-      subcategory: product.subcategory || "",
+      subcategory: product.subcategory || PRODUCT_SUBCATEGORIES[0] || "veg", // Default to first subcategory if missing
       stock: stockValue,
       customStock: (stockValue === "custom" && product.stock !== undefined && product.stock !== null) ? product.stock.toString() : "",
       emoji: product.emoji || "🥟",
@@ -599,27 +719,58 @@ const VendorProductsPage = () => {
       return;
     }
 
-    // Build product data object
+    // Validate subcategory (required field)
+    if (!editingProduct.subcategory || !editingProduct.subcategory.trim()) {
+      toast.error("Subcategory is required. Please select a subcategory.");
+      return;
+    }
+    const subcategory = editingProduct.subcategory.trim().toLowerCase();
+    if (!isValidSubcategory(subcategory)) {
+      toast.error(`Invalid subcategory. Please select a valid subcategory from the list.`);
+      return;
+    }
+
+    // Build product data object - ensure all required fields are present and correct types
+    // CRITICAL: All required fields must match backend schema exactly
     const productData = {
-      name: editingProduct.name.trim(),
-      price: price,
-      category: category,
-      stock: stock,
-      isAvailable: editingProduct.isAvailable !== undefined ? editingProduct.isAvailable : true,
+      // Required fields (must match backend schema)
+      name: String(editingProduct.name.trim()), // String, required
+      price: Number(price), // Number, required (≥ 0)
+      category: String(category), // String, required - must be: "Steamed", "Fried", "Special", or "Combo"
+      subcategory: String(subcategory), // String, required - must be: "veg", "chicken", "buff", "pork", "mutton", or "seafood"
+      
+      // Optional fields with defaults
+      stock: Number(stock), // Number, default -1 (unlimited)
+      isAvailable: Boolean(editingProduct.isAvailable !== undefined ? editingProduct.isAvailable : true), // Boolean, default true
     };
     
-    // Add optional fields
+    // Add optional fields only if they have values
     if (editingProduct.description && editingProduct.description.trim()) {
-      productData.description = editingProduct.description.trim();
+      productData.description = String(editingProduct.description.trim());
     }
     if (originalPrice !== null && originalPrice !== undefined) {
-      productData.originalPrice = originalPrice;
+      productData.originalPrice = Number(originalPrice);
     }
     if (editingProduct.emoji && editingProduct.emoji.trim()) {
-      productData.emoji = editingProduct.emoji.trim();
+      productData.emoji = String(editingProduct.emoji.trim());
     }
-    if (editingProduct.subcategory && editingProduct.subcategory.trim()) {
-      productData.subcategory = editingProduct.subcategory.trim();
+    
+    // Final validation: Ensure all required fields are present and valid
+    if (!productData.name || productData.name.trim() === '') {
+      toast.error("Product name is required");
+      return;
+    }
+    if (typeof productData.price !== 'number' || isNaN(productData.price) || productData.price < 0) {
+      toast.error("Valid price is required (must be a number ≥ 0)");
+      return;
+    }
+    if (!productData.category || !isValidCategory(productData.category)) {
+      toast.error(`Valid category is required. Must be one of: ${PRODUCT_CATEGORIES.join(', ')}`);
+      return;
+    }
+    if (!productData.subcategory || !isValidSubcategory(productData.subcategory)) {
+      toast.error(`Valid subcategory is required. Must be one of: ${PRODUCT_SUBCATEGORIES.join(', ')}`);
+      return;
     }
     
     // Check if we need FormData (only if uploading a new image file)
@@ -627,6 +778,12 @@ const VendorProductsPage = () => {
     
     console.log('🔍 Sending update for product ID:', id);
     console.log('🔍 Product data being sent:', productData);
+    console.log('🔍 Data types:', {
+      name: typeof productData.name,
+      price: typeof productData.price,
+      category: typeof productData.category,
+      subcategory: typeof productData.subcategory,
+    });
     console.log('🔍 Has new image file:', hasNewImageFile);
 
     try {
@@ -635,10 +792,30 @@ const VendorProductsPage = () => {
       if (hasNewImageFile) {
         // Use FormData when uploading a new image file
         const productFormData = new FormData();
-        Object.keys(productData).forEach(key => {
-          productFormData.append(key, productData[key]);
-        });
+        
+        // Add REQUIRED fields first (in order of importance)
+        productFormData.append('name', String(productData.name));
+        productFormData.append('price', String(productData.price)); // FormData requires strings
+        productFormData.append('category', String(productData.category));
+        productFormData.append('subcategory', String(productData.subcategory));
+        
+        // Add optional fields
+        productFormData.append('stock', String(productData.stock));
+        productFormData.append('isAvailable', String(productData.isAvailable));
+        
+        if (productData.description) {
+          productFormData.append('description', String(productData.description));
+        }
+        if (productData.originalPrice !== null && productData.originalPrice !== undefined) {
+          productFormData.append('originalPrice', String(productData.originalPrice));
+        }
+        if (productData.emoji) {
+          productFormData.append('emoji', String(productData.emoji));
+        }
+        
+        // Add image file last
         productFormData.append('image', editingProductImageFile);
+        
         console.log('📤 Sending FormData (with image file)');
         
         response = await apiClient.put(
@@ -654,11 +831,12 @@ const VendorProductsPage = () => {
               imageUrlToUse.startsWith('https://') ||
               imageUrlToUse.startsWith('data:') ||
               imageUrlToUse.startsWith('/')) {
-            productData.image = imageUrlToUse;
+            productData.image = String(imageUrlToUse);
             console.log('📤 Including image URL in JSON data');
           }
         }
         console.log('📤 Sending JSON data:', productData);
+        console.log('📤 JSON stringified:', JSON.stringify(productData));
         response = await apiClient.put(
         `${API_ENDPOINTS.PRODUCTS}/${id}`,
         productData
@@ -886,24 +1064,23 @@ const VendorProductsPage = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-charcoal-grey mb-2">
-                  Subcategory
+                  Subcategory *
                 </label>
                 <select
                   value={newProduct.subcategory}
                   onChange={(e) => setNewProduct({ ...newProduct, subcategory: e.target.value })}
-                  disabled={!newProduct.category || newProduct.category === "all" || loadingSubcategories || availableSubcategories.length === 0}
+                  disabled={!newProduct.category || newProduct.category === "all"}
                   className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">Select subcategory (optional)</option>
-                  {availableSubcategories.map((subcat) => (
+                  {PRODUCT_SUBCATEGORIES.map((subcat) => (
                     <option key={subcat} value={subcat}>
-                      {subcat}
+                      {getSubcategoryDisplayName(subcat)}
                     </option>
                   ))}
                 </select>
-                {loadingSubcategories && (
-                  <p className="text-xs text-charcoal-grey/50 mt-1">Loading subcategories...</p>
-                )}
+                <p className="text-xs text-charcoal-grey/50 mt-1">
+                  Choose a subcategory to help customers filter products
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-charcoal-grey mb-2">
@@ -1169,21 +1346,21 @@ const VendorProductsPage = () => {
         </Card>
 
         {/* Menu Preview Link */}
-        <Card className="p-4 bg-gradient-to-r from-deep-maroon/5 via-golden-amber/5 to-deep-maroon/5 border-2 border-deep-maroon/20">
+        <Card className="p-6 hover:shadow-xl transition-all duration-300 group" leftBorder="deep-maroon">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex items-center justify-center">
                 <FiExternalLink className="w-5 h-5 text-deep-maroon" />
               </div>
               <div>
-                <p className="font-bold text-charcoal-grey">Preview Your Menu</p>
+                <p className="font-black text-charcoal-grey text-lg">Preview Your Menu</p>
                 <p className="text-sm text-charcoal-grey/60">
                   See how your products appear to customers ({menuStats.visibleInMenu} products visible)
                 </p>
               </div>
             </div>
             <Link to="/menu">
-              <Button variant="secondary" size="md">
+              <Button variant="secondary" size="md" className="group-hover:bg-deep-maroon group-hover:text-white transition-colors">
                 <FiExternalLink className="w-4 h-4" />
                 View Menu
               </Button>
@@ -1192,27 +1369,27 @@ const VendorProductsPage = () => {
         </Card>
 
         {/* Menu Visibility Info */}
-        <Card className="p-6 bg-blue-50/50 border border-blue-200/50">
+        <Card className="p-6 hover:shadow-xl transition-all duration-300 group" leftBorder="blue-500">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400/10 to-blue-600/5 flex items-center justify-center flex-shrink-0">
               <FiEye className="w-5 h-5 text-blue-600" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-charcoal-grey mb-2">Menu Visibility Rules</h3>
+              <h3 className="font-black text-charcoal-grey text-lg mb-2">Menu Visibility Rules</h3>
               <p className="text-sm text-charcoal-grey/70 mb-3">
                 Products are visible to customers in the menu when:
               </p>
-              <ul className="space-y-1.5 text-sm text-charcoal-grey/70">
+              <ul className="space-y-1.5 text-sm text-charcoal-grey/70 mb-3 p-3 bg-gradient-to-br from-charcoal-grey/5 to-transparent rounded-xl border border-charcoal-grey/10">
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                   Product is <strong>Available</strong> (enabled)
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                   Product has <strong>Stock &gt; 0</strong>
                 </li>
               </ul>
-              <p className="text-xs text-charcoal-grey/60 mt-3 pt-3 border-t border-blue-200/50">
+              <p className="text-xs text-charcoal-grey/60 mt-3 pt-3 border-t border-charcoal-grey/10">
                 💡 Tip: Disable a product or set stock to 0 to hide it from customers without deleting it.
               </p>
             </div>
@@ -1240,10 +1417,14 @@ const VendorProductsPage = () => {
               </div>
             ) : (
               filteredProducts.map((product) => (
-            <Card key={product._id || product.id} className="p-6">
+            <Card 
+              key={product._id || product.id} 
+              className="p-6 hover:shadow-xl transition-all duration-300 group" 
+              leftBorder={isVisibleInMenu(product) ? "green-500" : "red-500"}
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex-shrink-0 border border-charcoal-grey/10">
+                  <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex-shrink-0 border border-charcoal-grey/10">
                     {product.imageUrl || (product.image && (product.image.startsWith("http") || product.image.startsWith("data:"))) ? (
                       <img
                         src={product.imageUrl || product.image}
@@ -1251,57 +1432,61 @@ const VendorProductsPage = () => {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span className="text-3xl">{product.image || "🥟"}</span>
+                      <span className="text-2xl">{product.image || "🥟"}</span>
                     )}
                   </div>
-                  <div>
-                    <h3 className="font-bold text-charcoal-grey text-lg">
+                  <div className="flex-1">
+                    <h3 className="font-black text-charcoal-grey text-lg mb-1">
                       {product.name}
                     </h3>
-                    <p className="text-sm text-charcoal-grey/60">{product.category}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-charcoal-grey/60">{product.category}</p>
+                      {isVisibleInMenu(product) ? (
+                        <Badge variant="success" className="flex items-center gap-1">
+                          <FiEye className="w-3 h-3" />
+                          In Menu
+                        </Badge>
+                      ) : (
+                        <Badge variant="error" className="flex items-center gap-1">
+                          <FiEyeOff className="w-3 h-3" />
+                          Hidden
+                        </Badge>
+                      )}
+                      {!product.isAvailable && (
+                        <Badge variant="error">Unavailable</Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isVisibleInMenu(product) ? (
-                    <Badge variant="success" className="flex items-center gap-1">
-                      <FiEye className="w-3 h-3" />
-                      In Menu
-                    </Badge>
-                  ) : (
-                    <Badge variant="error" className="flex items-center gap-1">
-                      <FiEyeOff className="w-3 h-3" />
-                      Hidden
-                    </Badge>
-                  )}
-                  {!product.isAvailable && (
-                    <Badge variant="error">Unavailable</Badge>
-                  )}
                 </div>
               </div>
 
-              {editingId !== (product._id || product.id) && (
-                <p className="text-charcoal-grey/70 text-sm mb-4">
-                  {product.description}
-                </p>
+              {editingId !== (product._id || product.id) && product.description && (
+                <div className="mb-4 p-3 bg-gradient-to-br from-charcoal-grey/5 to-transparent rounded-xl border border-charcoal-grey/10">
+                  <p className="text-charcoal-grey/80 text-sm">
+                    {product.description}
+                  </p>
+                </div>
               )}
 
               {editingId !== (product._id || product.id) && (
-                <div className="flex items-center justify-between mb-4 pb-4 border-b border-charcoal-grey/10">
-                <div>
-                  <p className="text-sm text-charcoal-grey/60">Price</p>
-                  <p className="font-bold text-deep-maroon text-lg">
-                    Rs. {product.price}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-charcoal-grey/60">Stock</p>
-                  <p className={`font-bold ${product.stock === 0 ? 'text-red-600' : 'text-charcoal-grey'}`}>
-                    {product.stock} units
-                  </p>
-                  {product.stock === 0 && (
-                    <p className="text-xs text-red-600 mt-1">⚠️ Hidden from menu</p>
-                  )}
-                </div>
+                <div className="pt-4 border-t border-charcoal-grey/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs text-charcoal-grey/60 mb-1">Price</p>
+                      <p className="font-black text-deep-maroon text-xl">
+                        Rs. {product.price}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-charcoal-grey/60 mb-1">Stock</p>
+                      <p className={`font-bold ${product.stock === 0 ? 'text-red-600' : 'text-charcoal-grey'}`}>
+                        {product.stock === -1 ? 'Unlimited' : `${product.stock} units`}
+                      </p>
+                      {product.stock === 0 && (
+                        <p className="text-xs text-red-600 mt-1">⚠️ Hidden from menu</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1361,24 +1546,23 @@ const VendorProductsPage = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-charcoal-grey mb-2">
-                        Subcategory
+                        Subcategory *
                       </label>
                       <select
-                        value={editingProduct?.subcategory || ""}
+                        value={editingProduct?.subcategory || PRODUCT_SUBCATEGORIES[0] || "veg"}
                         onChange={(e) => handleEditChange("subcategory", e.target.value)}
-                        disabled={!editingProduct?.category || editingProduct.category === "all" || loadingEditingSubcategories || editingSubcategories.length === 0}
+                        disabled={!editingProduct?.category || editingProduct.category === "all"}
                         className="w-full px-4 py-3 border border-charcoal-grey/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-golden-amber/25 focus:border-golden-amber/35 text-charcoal-grey bg-charcoal-grey/2 hover:bg-charcoal-grey/4 transition-all duration-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <option value="">Select subcategory (optional)</option>
-                        {editingSubcategories.map((subcat) => (
+                        {PRODUCT_SUBCATEGORIES.map((subcat) => (
                           <option key={subcat} value={subcat}>
-                            {subcat}
+                            {getSubcategoryDisplayName(subcat)}
                           </option>
                         ))}
                       </select>
-                      {loadingEditingSubcategories && (
-                        <p className="text-xs text-charcoal-grey/50 mt-1">Loading subcategories...</p>
-                      )}
+                      <p className="text-xs text-charcoal-grey/50 mt-1">
+                        Choose a subcategory to help customers filter products
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-charcoal-grey mb-2">
@@ -1585,9 +1769,13 @@ const VendorProductsPage = () => {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {productsByCategory[category].map((product) => (
-                    <Card key={product._id || product.id} className="p-6 hover:shadow-xl transition-all duration-300">
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex-shrink-0 border border-charcoal-grey/10">
+                    <Card 
+                      key={product._id || product.id} 
+                      className="p-6 hover:shadow-xl transition-all duration-300 group" 
+                      leftBorder={isVisibleInMenu(product) ? "green-500" : "red-500"}
+                    >
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex-shrink-0 border border-charcoal-grey/10">
                           {product.imageUrl || (product.image && (product.image.startsWith("http") || product.image.startsWith("data:"))) ? (
                             <img
                               src={product.imageUrl || product.image}
@@ -1595,12 +1783,12 @@ const VendorProductsPage = () => {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <span className="text-3xl">{product.image || "🥟"}</span>
+                            <span className="text-2xl">{product.image || "🥟"}</span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-2">
-                            <h3 className="font-bold text-charcoal-grey text-lg leading-tight">
+                            <h3 className="font-black text-charcoal-grey text-lg leading-tight">
                               {product.name}
                             </h3>
                             <div className="flex items-center gap-2 flex-shrink-0">
@@ -1617,17 +1805,27 @@ const VendorProductsPage = () => {
                               )}
                             </div>
                           </div>
-                          <p className="text-sm text-charcoal-grey/70 mb-3 line-clamp-2">
-                            {product.description}
-                          </p>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-2xl font-black text-deep-maroon">
-                                Rs. {product.price}
+                          {product.description && (
+                            <div className="mb-3 p-3 bg-gradient-to-br from-charcoal-grey/5 to-transparent rounded-xl border border-charcoal-grey/10">
+                              <p className="text-sm text-charcoal-grey/80 line-clamp-2">
+                                {product.description}
                               </p>
-                              <p className="text-xs text-charcoal-grey/60">
-                                Stock: {product.stock} units
-                              </p>
+                            </div>
+                          )}
+                          <div className="pt-3 border-t border-charcoal-grey/10">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs text-charcoal-grey/60 mb-1">Price</p>
+                                <p className="text-xl font-black text-deep-maroon">
+                                  Rs. {product.price}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-charcoal-grey/60 mb-1">Stock</p>
+                                <p className="font-bold text-charcoal-grey">
+                                  {product.stock === -1 ? 'Unlimited' : `${product.stock} units`}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>

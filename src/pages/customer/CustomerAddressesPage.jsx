@@ -98,9 +98,14 @@ const CustomerAddressesPage = () => {
 
   // Fetch areas function
   const fetchAreas = useCallback(async (city) => {
+    if (!city || !city.trim()) {
+      setAvailableAreas([]);
+      return;
+    }
+    
     try {
       setLoadingAreas(true);
-      const response = await apiClient.get(`${API_ENDPOINTS.ADDRESSES}/areas/${city}`);
+      const response = await apiClient.get(`${API_ENDPOINTS.ADDRESSES}/areas/${encodeURIComponent(city.trim())}`);
       if (response.data.success) {
         setAvailableAreas(response.data.data.areas || []);
         
@@ -113,9 +118,19 @@ const CustomerAddressesPage = () => {
         });
       }
     } catch (error) {
-      console.error('Error fetching areas:', error);
-      setAvailableAreas([]);
-      toast.error('Failed to load areas for this city');
+      // Silently handle 404 errors (endpoint might not be implemented)
+      if (error.response?.status === 404) {
+        console.log(`Areas endpoint not available for city: ${city}`);
+        setAvailableAreas([]);
+        // Don't show error toast for 404 - endpoint might not be implemented
+      } else {
+        console.error('Error fetching areas:', error);
+        setAvailableAreas([]);
+        // Only show error for non-404 errors (network issues, server errors, etc.)
+        if (error.response?.status !== 404) {
+          toast.error('Failed to load areas for this city');
+        }
+      }
     } finally {
       setLoadingAreas(false);
     }
@@ -496,47 +511,55 @@ const CustomerAddressesPage = () => {
               const addressId = address._id || address.id;
               if (!addressId) return null;
               return (
-                <Card key={addressId} className="p-6">
+                <Card 
+                  key={addressId} 
+                  className="p-6 hover:shadow-xl transition-all duration-300 group" 
+                  leftBorder={address.isDefault ? "golden-amber" : "deep-maroon"}
+                >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex items-center justify-center">
-                    <FiMapPin className="w-6 h-6 text-deep-maroon" />
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex items-center justify-center">
+                    <FiMapPin className="w-5 h-5 text-deep-maroon" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-charcoal-grey text-lg">{address.label}</h3>
-                    {address.isDefault && (
-                      <span className="inline-block px-2 py-1 rounded-full bg-golden-amber/10 text-golden-amber text-xs font-semibold border border-golden-amber/20">
-                        Default
-                      </span>
-                    )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-black text-charcoal-grey text-lg">{address.label}</h3>
+                      {address.isDefault && (
+                        <span className="px-2 py-0.5 rounded-full bg-golden-amber/10 text-golden-amber text-xs font-bold border border-golden-amber/20">
+                          Default
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
               
-              <div className="space-y-2 mb-4 text-charcoal-grey/80">
-                {address.fullName && <p className="font-semibold">{address.fullName}</p>}
-                {address.phone && (
-                  <p className="text-sm text-charcoal-grey/60 flex items-center gap-2">
-                    <FiPhone className="w-4 h-4" />
-                    {address.phone}
+              <div className="mb-4 p-3 bg-gradient-to-br from-charcoal-grey/5 to-transparent rounded-xl border border-charcoal-grey/10">
+                <div className="space-y-2 text-sm">
+                  {address.fullName && <p className="font-semibold text-charcoal-grey">{address.fullName}</p>}
+                  {address.phone && (
+                    <p className="text-charcoal-grey/80 flex items-center gap-2">
+                      <FiPhone className="w-4 h-4 text-charcoal-grey/60" />
+                      <span className="font-medium">{address.phone}</span>
+                    </p>
+                  )}
+                  <p className="text-charcoal-grey/80">
+                    <span className="font-semibold text-charcoal-grey">City:</span> {address.city}
                   </p>
-                )}
-                <p className="text-sm text-charcoal-grey/60">
-                  <span className="font-semibold">City:</span> {address.city}
-                </p>
-                <p className="text-sm text-charcoal-grey/60">
-                  <span className="font-semibold">Area:</span> {address.area}
-                </p>
-                {(address.nearestLandmark || address.landmark) && (
-                  <p className="text-sm text-charcoal-grey/60">
-                    <span className="font-semibold">Nearest Landmark:</span> {address.nearestLandmark || address.landmark}
+                  <p className="text-charcoal-grey/80">
+                    <span className="font-semibold text-charcoal-grey">Area:</span> {address.area}
                   </p>
-                )}
-                {address.postalCode && (
-                  <p className="text-sm text-charcoal-grey/60">
-                    <span className="font-semibold">Postal Code:</span> {address.postalCode}
-                  </p>
-                )}
+                  {(address.nearestLandmark || address.landmark) && (
+                    <p className="text-charcoal-grey/80">
+                      <span className="font-semibold text-charcoal-grey">Nearest Landmark:</span> {address.nearestLandmark || address.landmark}
+                    </p>
+                  )}
+                  {address.postalCode && (
+                    <p className="text-charcoal-grey/80">
+                      <span className="font-semibold text-charcoal-grey">Postal Code:</span> {address.postalCode}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center gap-3 pt-4 border-t border-charcoal-grey/10">

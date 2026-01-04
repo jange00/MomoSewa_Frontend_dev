@@ -12,12 +12,20 @@ import { API_ENDPOINTS } from '../api/config';
  */
 export const initiateEsewaPayment = async (orderId, amount) => {
   try {
+    console.log('🔄 Initiating eSewa payment...');
+    console.log('Endpoint:', API_ENDPOINTS.ESEWA.INITIATE);
+    console.log('Payload:', { orderId, amount });
+    
     const response = await apiClient.post(API_ENDPOINTS.ESEWA.INITIATE, {
       orderId: orderId,
       amount: parseFloat(amount), // Ensure it's a number
     });
-    return handleApiResponse(response);
+    
+    const result = handleApiResponse(response);
+    console.log('✅ Payment response received:', result);
+    return result;
   } catch (error) {
+    console.error('❌ Error initiating eSewa payment:', error);
     throw handleApiError(error);
   }
 };
@@ -32,14 +40,21 @@ export const initiateEsewaPayment = async (orderId, amount) => {
  */
 export const verifyEsewaPayment = async (orderId, amount, refId, signature = null) => {
   try {
+    console.log('🔄 Verifying eSewa payment...');
+    console.log('Payload:', { orderId, amount, refId, hasSignature: !!signature });
+    
     const response = await apiClient.post(API_ENDPOINTS.ESEWA.VERIFY, {
       orderId: orderId,
       amount: parseFloat(amount),
       refId: refId,
       signature: signature, // Optional, if eSewa sends it
     });
-    return handleApiResponse(response);
+    
+    const result = handleApiResponse(response);
+    console.log('✅ Payment verification response:', result);
+    return result;
   } catch (error) {
+    console.error('❌ Error verifying eSewa payment:', error);
     throw handleApiError(error);
   }
 };

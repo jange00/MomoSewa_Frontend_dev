@@ -223,7 +223,10 @@ const ProductCard = ({ product, onAddToCart }) => {
   }
 
   return (
-    <Card className="p-0 overflow-hidden group">
+    <Card 
+      className="p-0 overflow-hidden group hover:shadow-xl transition-all duration-300" 
+      leftBorder={available ? "green-500" : "red-500"}
+    >
       <div className="relative">
         {/* Product Image */}
         <div className="relative h-48 bg-gradient-to-br from-deep-maroon/10 via-golden-amber/5 to-deep-maroon/10 flex items-center justify-center overflow-hidden">

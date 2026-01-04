@@ -4,6 +4,7 @@ import Button from "../../../ui/buttons/Button";
 import { FiClock, FiUser, FiShoppingBag, FiArrowRight, FiPackage } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { formatOrderId } from "../../../utils/formatOrderId";
+import { formatPaymentMethod } from "../../../utils/paymentStatus";
 
 const AdminOrderCard = ({ order }) => {
   // Track image load errors for each item
@@ -184,6 +185,25 @@ const AdminOrderCard = ({ order }) => {
             }
             return null;
           })()}
+          
+          {/* Payment Status */}
+          {order.paymentStatus && (
+            <div className="mt-2">
+              {order.paymentStatus === 'paid' ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                  ✅ Paid ({formatPaymentMethod(order.paymentMethod || '')})
+                </span>
+              ) : order.paymentMethod === 'cash-on-delivery' ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+                  💰 Collect on Delivery
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
+                  ⏳ Payment Pending
+                </span>
+              )}
+            </div>
+          )}
         </div>
         </div>
       </div>

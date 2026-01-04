@@ -28,6 +28,7 @@ import { useGet, usePatch } from "../../hooks/useApi";
 import { API_ENDPOINTS } from "../../api/config";
 import apiClient from "../../api/client";
 import { formatOrderId } from "../../utils/formatOrderId";
+import { getPaymentStatusConfig, formatPaymentMethod } from "../../utils/paymentStatus";
 
 const VendorOrderDetailPage = () => {
   const { id } = useParams();
@@ -746,11 +747,48 @@ const VendorOrderDetailPage = () => {
                     Rs. {(order.total || order.amount || 0).toFixed(2)}
                   </span>
                 </div>
-                <div className="pt-3 border-t border-charcoal-grey/10">
-                  <p className="text-sm text-charcoal-grey/60 mb-1">Payment Method</p>
-                  <p className="font-medium text-charcoal-grey">
-                    {order.paymentMethod || order.payment?.method || 'Not specified'}
-                  </p>
+                {/* Payment Information */}
+                <div className="pt-3 border-t border-charcoal-grey/10 space-y-3">
+                  <div>
+                    <p className="text-sm text-charcoal-grey/60 mb-1">Payment Method</p>
+                    <p className="font-medium text-charcoal-grey">
+                      {formatPaymentMethod(order.paymentMethod || order.payment?.method || 'Not specified')}
+                    </p>
+                  </div>
+                  {order.paymentStatus && (
+                    <div>
+                      <p className="text-sm text-charcoal-grey/60 mb-1">Payment Status</p>
+                      {(() => {
+                        const paymentConfig = getPaymentStatusConfig(
+                          order.paymentStatus,
+                          order.paymentMethod
+                        );
+                        return (
+                          <span
+                            className={`inline-block px-2 py-1 rounded-full text-xs font-semibold border ${paymentConfig.bg} ${paymentConfig.text} ${paymentConfig.border}`}
+                          >
+                            {paymentConfig.icon} {paymentConfig.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {order.esewaTransactionId && (
+                    <div>
+                      <p className="text-sm text-charcoal-grey/60 mb-1">eSewa Transaction ID</p>
+                      <p className="font-mono text-xs text-charcoal-grey/80 break-all">
+                        {order.esewaTransactionId}
+                      </p>
+                    </div>
+                  )}
+                  {order.khaltiTransactionId && (
+                    <div>
+                      <p className="text-sm text-charcoal-grey/60 mb-1">Khalti Transaction ID</p>
+                      <p className="font-mono text-xs text-charcoal-grey/80 break-all">
+                        {order.khaltiTransactionId}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>

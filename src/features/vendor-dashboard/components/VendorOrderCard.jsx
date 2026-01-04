@@ -5,6 +5,7 @@ import ConfirmDialog from "../../../ui/modals/ConfirmDialog";
 import { FiClock, FiUser, FiPhone, FiMapPin, FiCheck, FiX, FiPackage, FiTruck } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { formatOrderId } from "../../../utils/formatOrderId";
+import { formatPaymentMethod } from "../../../utils/paymentStatus";
 
 // Component for individual order item with image
 const OrderItemPreview = ({ item }) => {
@@ -75,11 +76,46 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
     variant: "danger",
   });
   const statusColors = {
-    pending: { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
-    preparing: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-    "on-the-way": { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
-    delivered: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-    cancelled: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+    pending: { 
+      bg: "bg-yellow-50", 
+      text: "text-yellow-700", 
+      border: "border-yellow-200",
+      dot: "bg-yellow-500",
+      gradient: "from-yellow-400/10 to-yellow-600/5",
+      leftBorder: "yellow-500"
+    },
+    preparing: { 
+      bg: "bg-blue-50", 
+      text: "text-blue-700", 
+      border: "border-blue-200",
+      dot: "bg-blue-500",
+      gradient: "from-blue-400/10 to-blue-600/5",
+      leftBorder: "blue-500"
+    },
+    "on-the-way": { 
+      bg: "bg-purple-50", 
+      text: "text-purple-700", 
+      border: "border-purple-200",
+      dot: "bg-purple-500",
+      gradient: "from-purple-400/10 to-purple-600/5",
+      leftBorder: "purple-500"
+    },
+    delivered: { 
+      bg: "bg-green-50", 
+      text: "text-green-700", 
+      border: "border-green-200",
+      dot: "bg-green-500",
+      gradient: "from-green-400/10 to-green-600/5",
+      leftBorder: "green-500"
+    },
+    cancelled: { 
+      bg: "bg-red-50", 
+      text: "text-red-700", 
+      border: "border-red-200",
+      dot: "bg-red-500",
+      gradient: "from-red-400/10 to-red-600/5",
+      leftBorder: "red-500"
+    },
   };
 
   const statusLabels = {
@@ -121,29 +157,57 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
     }
   };
 
-  const canAccept = order.status === "pending";
+  // Check if payment is confirmed (for online payments, require payment to be paid)
+  const isPaymentConfirmed = order.paymentMethod === 'cash-on-delivery' || order.paymentStatus === 'paid';
+  
+  const canAccept = order.status === "pending" && isPaymentConfirmed;
   const canReject = order.status === "pending";
-  const canStartPreparing = order.status === "pending";
-  const canMarkReady = order.status === "preparing";
-  const canMarkOnWay = order.status === "preparing";
-  const canMarkDelivered = order.status === "on-the-way";
+  const canStartPreparing = order.status === "pending" && isPaymentConfirmed;
+  const canMarkReady = order.status === "preparing" && isPaymentConfirmed;
+  const canMarkOnWay = order.status === "preparing" && isPaymentConfirmed;
+  const canMarkDelivered = order.status === "on-the-way" && isPaymentConfirmed;
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 hover:shadow-xl transition-all duration-300 group" leftBorder={status.leftBorder}>
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-bold text-charcoal-grey">Order #{formatOrderId(order)}</h3>
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold border ${status.bg} ${status.text} ${status.border}`}
-            >
-              {statusLabel}
-            </span>
+          <div className="flex items-center gap-3 mb-3">
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${status.gradient} flex items-center justify-center`}>
+              <FiPackage className={`w-5 h-5 ${status.text}`} />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-black text-charcoal-grey text-lg mb-1">Order #{formatOrderId(order)}</h3>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${status.dot} animate-pulse`}></span>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${status.bg} ${status.text} ${status.border} border`}>
+                  {statusLabel}
+                </span>
+              </div>
+            </div>
           </div>
           <p className="text-sm text-charcoal-grey/60 flex items-center gap-1 mb-2">
             <FiClock className="w-4 h-4" />
             {order.date}
           </p>
+          
+          {/* Payment Status */}
+          {order.paymentStatus && (
+            <div className="mt-2 mb-2">
+              {order.paymentStatus === 'paid' ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                  ✅ Paid ({formatPaymentMethod(order.paymentMethod || '')})
+                </span>
+              ) : order.paymentMethod === 'cash-on-delivery' ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+                  💰 Collect on Delivery
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
+                  ⏳ Payment Pending
+                </span>
+              )}
+            </div>
+          )}
           
           {/* Customer Information */}
           {order.customer && (
@@ -167,28 +231,53 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
             </div>
           )}
         </div>
-        <div className="text-right ml-4">
-          <p className="font-bold text-deep-maroon text-lg">Rs. {order.total}</p>
-          {order.itemsCount && (
-            <p className="text-xs text-charcoal-grey/60">{order.itemsCount} items</p>
-          )}
-        </div>
       </div>
 
       {/* Order Items Preview */}
-      <div className="mb-4 space-y-2 pb-4 border-b border-charcoal-grey/10">
-        {order.items?.slice(0, 3).map((item, index) => (
-          <OrderItemPreview key={index} item={item} />
-        ))}
-        {order.items?.length > 3 && (
-          <p className="text-xs text-charcoal-grey/60 text-center">
-            +{order.items.length - 3} more items
-          </p>
-        )}
-      </div>
+      {order.items && order.items.length > 0 && (
+        <div className="mb-4 p-3 bg-gradient-to-br from-charcoal-grey/5 to-transparent rounded-xl border border-charcoal-grey/10">
+          <div className="space-y-2.5">
+            {order.items.slice(0, 3).map((item, index) => (
+              <OrderItemPreview key={index} item={item} />
+            ))}
+            {order.items.length > 3 && (
+              <div className="pt-2 border-t border-charcoal-grey/10">
+                <p className="text-xs text-charcoal-grey/60 text-center font-medium">
+                  +{order.items.length - 3} more items
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-      {/* Vendor Actions */}
-      <div className="flex items-center gap-2 pt-4">
+      {/* Payment Warning for Online Payments */}
+      {order.paymentMethod !== 'cash-on-delivery' && order.paymentStatus !== 'paid' && (
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-xs text-red-700 flex items-center gap-1">
+            <span>⚠️</span>
+            Cannot update status - Payment not confirmed
+          </p>
+        </div>
+      )}
+
+      {/* Footer with Total and Actions */}
+      <div className="pt-4 border-t border-charcoal-grey/10">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs text-charcoal-grey/60 mb-1">Total Amount</p>
+            <p className="font-black text-deep-maroon text-xl">Rs. {order.total}</p>
+          </div>
+          {(order.itemsCount || order.items?.length) && (
+            <div className="text-right">
+              <p className="text-xs text-charcoal-grey/60 mb-1">Items</p>
+              <p className="font-bold text-charcoal-grey">{order.itemsCount || order.items?.length}</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Vendor Actions */}
+        <div className="flex items-center gap-2">
         {canAccept && (
           <Button
             variant="primary"
@@ -269,6 +358,7 @@ const VendorOrderCard = ({ order, onStatusUpdate }) => {
             </Button>
           </Link>
         )}
+        </div>
       </div>
 
       {/* Confirmation Dialog */}

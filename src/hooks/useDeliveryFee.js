@@ -12,7 +12,8 @@ const DEFAULT_SETTINGS = {
 
 export const useDeliveryFee = () => {
   // Fetch delivery fee settings (public endpoint, no auth required)
-  // If endpoint doesn't exist (404), gracefully fall back to defaults
+  // DISABLED: Endpoint format doesn't match, so we'll just use defaults
+  // If endpoint format matches in the future, set enabled: true
   const { data: deliveryFeeData, isLoading, error, isError } = useGet(
     'delivery-fee-settings',
     API_ENDPOINTS.DELIVERY_FEE,
@@ -23,36 +24,21 @@ export const useDeliveryFee = () => {
       refetchOnWindowFocus: false,
       retry: false, // Don't retry on 404
       retryOnMount: false, // Don't retry on mount if it fails
-      enabled: true, // Always try to fetch, but handle 404 gracefully
+      enabled: false, // DISABLED: Endpoint format doesn't match - using defaults instead
     }
   );
 
   // Extract settings with fallback to defaults
-  // If endpoint returns 404 or error, use default values
+  // If endpoint returns 404, 422, or any error, use default values silently
   const settings = useMemo(() => {
-    // If data is null (404 with ignore404), use defaults
+    // If data is null (404 with ignore404), use defaults silently
     if (deliveryFeeData === null) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Delivery fee endpoint not found (404), using default values:', DEFAULT_SETTINGS);
-      }
       return DEFAULT_SETTINGS;
     }
     
-    // If there's an error, check the status code
-    // 404 = endpoint doesn't exist
-    // 422 = validation error (endpoint exists but expects different format)
-    // Both are acceptable - we'll use defaults silently
-    if (isError && error) {
-      const errorStatus = error?.status || error?.response?.status;
-      // For 404 or 422, use defaults silently (expected behavior)
-      if (errorStatus === 404 || errorStatus === 422) {
-        // Don't log anything - these are expected errors when endpoint doesn't exist or format differs
-        return DEFAULT_SETTINGS;
-      }
-      // For other unexpected errors, log as warning
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Error fetching delivery fee settings, using defaults:', error);
-      }
+    // If there's an error (404, 422, or any other), use defaults silently
+    // These are expected errors - endpoint might not exist or format might differ
+    if (isError) {
       return DEFAULT_SETTINGS;
     }
     

@@ -11,7 +11,6 @@ import { API_ENDPOINTS } from "../api/config";
 import { useAuth } from "../hooks/useAuth";
 import { USER_ROLES } from "../common/roleConstants";
 import { useDeliveryFee } from "../hooks/useDeliveryFee";
-import * as paymentService from "../services/paymentService";
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -80,7 +79,7 @@ const CheckoutPage = () => {
     showErrorToast: true,
   });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("esewa");
+  const [paymentMethod, setPaymentMethod] = useState("cash-on-delivery");
   const [deliveryForm, setDeliveryForm] = useState({
     fullName: "",
     phone: "",
@@ -94,72 +93,6 @@ const CheckoutPage = () => {
 
   // Fetch delivery fee settings
   const { calculateDeliveryFee, getAmountNeededForFreeDelivery } = useDeliveryFee();
-
-  // Helper function to submit eSewa payment form
-  const submitEsewaForm = (formData, paymentUrl) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('=== SUBMITTING ESEWA FORM ===');
-      console.log('Payment URL:', paymentUrl);
-      console.log('Form Data:', formData);
-      console.log('Form Data Keys:', Object.keys(formData));
-    }
-
-    // Validate inputs
-    if (!paymentUrl) {
-      console.error('❌ Payment URL is missing');
-      toast.error('Payment URL is missing. Please contact support.');
-      return;
-    }
-
-    if (!formData || Object.keys(formData).length === 0) {
-      console.error('❌ Form data is missing or empty');
-      toast.error('Payment form data is missing. Please contact support.');
-      return;
-    }
-
-    // Create a form element
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = paymentUrl; // e.g., 'https://esewa.com.np/epay/main'
-    form.target = '_blank'; // Open in new window/tab so user can see what's happening
-
-    // Add all form fields
-    // eSewa expects all values to be strings
-    Object.keys(formData).forEach(key => {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      // Convert value to string (eSewa requires string values)
-      input.value = String(formData[key] || '');
-      form.appendChild(input);
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`  ${key}: ${input.value} (type: ${typeof input.value})`);
-      }
-    });
-
-    // Append form to body and submit
-    document.body.appendChild(form);
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Form created, submitting to new window...');
-    }
-    
-    // Show a message to the user
-    toast.success('Opening eSewa payment page in a new window...');
-    
-    // Submit form - it will open in a new window/tab
-    form.submit();
-    
-    // Clean up the form after a short delay
-    setTimeout(() => {
-      try {
-        document.body.removeChild(form);
-      } catch (e) {
-        // Form might already be removed
-      }
-    }, 1000);
-  };
 
   const subtotal = useMemo(() => {
     return cartItems.reduce((sum, item) => {
@@ -382,117 +315,15 @@ const CheckoutPage = () => {
           return;
         }
         
-        // Get order total from result
-        const orderTotal = result.data?.order?.total || total;
-
-        // If payment method is eSewa, initiate payment
-        if (paymentMethod === 'esewa' && orderId) {
-          try {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('=== INITIATING ESEWA PAYMENT ===');
-              console.log('Order ID:', orderId);
-              console.log('Order Total:', orderTotal);
+        // Navigate to checkout success page with order data
+        if (orderId && orderId !== 'undefined' && orderId !== 'null') {
+          navigate('/checkout/success', {
+            state: {
+              order: result.data?.order || null,
+              orderId: orderId,
             }
-            
-            // Small delay to ensure order is fully saved in database
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Initiate eSewa payment with orderId and amount
-            const paymentResult = await paymentService.initiateEsewaPayment(orderId, orderTotal);
-            
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Payment initiation result:', paymentResult);
-              console.log('Payment result structure:', JSON.stringify(paymentResult, null, 2));
-            }
-            
-            // Extract formData and payment_url from response
-            // handleApiResponse returns: { success: true, data: { formData: {...}, payment_url: "..." } }
-            // So paymentResult = { success: true, data: { formData: {...}, payment_url: "..." } }
-            const paymentData = paymentResult?.data;
-            const formData = paymentData?.formData;
-            const paymentUrl = paymentData?.payment_url || paymentData?.paymentUrl;
-            
-            if (process.env.NODE_ENV === 'development') {
-              console.log('=== PAYMENT RESPONSE ANALYSIS ===');
-              console.log('Full paymentResult:', paymentResult);
-              console.log('paymentResult.success:', paymentResult?.success);
-              console.log('paymentResult.data:', paymentResult?.data);
-              console.log('paymentData:', paymentData);
-              console.log('formData:', formData);
-              console.log('paymentUrl:', paymentUrl);
-              if (paymentData) {
-                console.log('paymentData keys:', Object.keys(paymentData));
-              }
-              if (formData) {
-                console.log('formData keys:', Object.keys(formData));
-                console.log('formData values:', formData);
-              }
-              console.log('===============================');
-            }
-            
-            // Validate formData and paymentUrl
-            if (!formData || typeof formData !== 'object' || Object.keys(formData).length === 0) {
-              console.error("❌ Payment formData is missing, empty, or invalid:", formData);
-              console.error("Payment response structure:", {
-                paymentResult,
-                hasData: !!paymentResult?.data,
-                dataKeys: paymentResult?.data ? Object.keys(paymentResult.data) : [],
-                formDataType: typeof formData,
-                formDataKeys: formData ? Object.keys(formData) : [],
-              });
-              toast.error("Payment form data is missing or invalid. Please contact support.");
-              setIsProcessing(false);
-              return;
-            }
-            
-            if (!paymentUrl || typeof paymentUrl !== 'string') {
-              console.error("❌ Payment URL is missing or invalid:", paymentUrl);
-              toast.error("Payment URL is missing. Please contact support.");
-              setIsProcessing(false);
-              return;
-            }
-            
-            // All validation passed, submit form to eSewa
-            if (process.env.NODE_ENV === 'development') {
-              console.log('✅ Payment data validated, submitting form to eSewa');
-            }
-            
-            // Submit form to eSewa
-            submitEsewaForm(formData, paymentUrl);
-            // Form submission will redirect user to eSewa, so we don't need to navigate
-            setIsProcessing(false); // Reset processing state
-            return; // Exit early - form submission will redirect
-          } catch (paymentError) {
-            console.error("❌ Failed to initiate eSewa payment:", paymentError);
-            console.error("Payment error details:", {
-              message: paymentError?.message,
-              status: paymentError?.status,
-              response: paymentError?.response,
-            });
-            
-            setIsProcessing(false);
-            
-            // Check if it's a 404 (endpoint not implemented) or order not found
-            if (paymentError?.status === 404) {
-              if (paymentError?.message?.includes('Order not found')) {
-                toast.error("Order not found. The order may still be processing. Please check your orders page.");
-              } else {
-                toast.error("Payment endpoint not available. Please contact support.");
-              }
-            } else {
-              toast.error("Failed to initiate payment. Please try again or contact support.");
-            }
-            
-            // For eSewa payment failure, don't navigate - let user see the error and try again
-            // The order is already created with pending payment status
-            return;
-          }
-        }
-        
-        // For cash-on-delivery or other payment methods, navigate to order page
-        if (paymentMethod !== 'esewa' && orderId && orderId !== 'undefined' && orderId !== 'null') {
-          navigate(`/customer/orders/${orderId}`);
-        } else if (paymentMethod !== 'esewa') {
+          });
+        } else {
           console.error('Cannot navigate: orderId is invalid:', orderId);
           toast.error("Order created but order ID not found. Please check your orders page.");
           navigate('/customer/orders'); // Navigate to orders list instead
@@ -505,13 +336,8 @@ const CheckoutPage = () => {
         const errorMessages = error.details.map(d => d.msg || d.message || JSON.stringify(d)).join(', ');
         console.error("Validation errors:", errorMessages);
         
-        // Check if it's a payment method validation error
-        const isPaymentMethodError = errorMessages.toLowerCase().includes('payment method');
-        if (isPaymentMethodError) {
-          console.warn("⚠️ Payment method validation failed.");
-          console.warn("Backend might not have 'esewa' in allowed payment methods list.");
-          console.warn("Please ensure backend validation accepts 'esewa' as a valid payment method.");
-        }
+        // Log validation errors
+        console.error("Validation errors:", errorMessages);
       }
     } finally {
       setIsProcessing(false);
