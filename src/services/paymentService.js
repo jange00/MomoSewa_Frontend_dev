@@ -32,23 +32,36 @@ export const initiateEsewaPayment = async (orderId, amount) => {
 
 /**
  * Verify eSewa payment status
- * @param {string} orderId - Order ID
- * @param {number} amount - Payment amount
- * @param {string} refId - eSewa reference ID
+ * @param {string} orderId - Order ID (from eSewa callback as 'pid')
+ * @param {string|number} amount - Payment amount (from eSewa callback as 'amt')
+ * @param {string} refId - eSewa reference ID (from eSewa callback)
  * @param {string} signature - Optional signature from eSewa
  * @returns {Promise<Object>} Payment verification response
  */
 export const verifyEsewaPayment = async (orderId, amount, refId, signature = null) => {
   try {
     console.log('🔄 Verifying eSewa payment...');
-    console.log('Payload:', { orderId, amount, refId, hasSignature: !!signature });
-    
-    const response = await apiClient.post(API_ENDPOINTS.ESEWA.VERIFY, {
-      orderId: orderId,
-      amount: parseFloat(amount),
-      refId: refId,
-      signature: signature, // Optional, if eSewa sends it
+    console.log('Endpoint:', API_ENDPOINTS.ESEWA.VERIFY);
+    console.log('Payload:', { 
+      orderId, 
+      amount: typeof amount === 'string' ? amount : parseFloat(amount), 
+      refId, 
+      hasSignature: !!signature 
     });
+    
+    // Prepare payload according to API documentation
+    const payload = {
+      orderId: String(orderId), // Ensure it's a string
+      amount: typeof amount === 'string' ? amount : String(parseFloat(amount)), // Backend expects string or number
+      refId: String(refId),
+    };
+    
+    // Add signature if provided
+    if (signature) {
+      payload.signature = String(signature);
+    }
+    
+    const response = await apiClient.post(API_ENDPOINTS.ESEWA.VERIFY, payload);
     
     const result = handleApiResponse(response);
     console.log('✅ Payment verification response:', result);

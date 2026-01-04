@@ -11,6 +11,7 @@ import { API_ENDPOINTS } from "../api/config";
 import { useAuth } from "../hooks/useAuth";
 import { USER_ROLES } from "../common/roleConstants";
 import { useDeliveryFee } from "../hooks/useDeliveryFee";
+import * as paymentService from "../services/paymentService";
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -315,18 +316,88 @@ const CheckoutPage = () => {
           return;
         }
         
-        // Navigate to checkout success page with order data
-        if (orderId && orderId !== 'undefined' && orderId !== 'null') {
+        // Handle payment based on payment method
+        if (finalPaymentMethod === 'esewa') {
+          // Step 2: Initiate eSewa payment
+          try {
+            console.log('🔄 Initiating eSewa payment for order:', orderId);
+            const paymentResponse = await paymentService.initiateEsewaPayment(orderId, total);
+            
+            if (paymentResponse?.success && paymentResponse?.data) {
+              const { payment_url, formData } = paymentResponse.data;
+              
+              if (!payment_url || !formData) {
+                throw new Error('Invalid payment response: missing payment_url or formData');
+              }
+              
+              // Validate payment URL
+              try {
+                const url = new URL(payment_url);
+                if (!url.protocol.startsWith('http')) {
+                  throw new Error('Invalid payment URL protocol');
+                }
+              } catch (urlError) {
+                console.error('❌ Invalid payment URL:', payment_url);
+                throw new Error(`Invalid payment URL: ${payment_url}. Please contact support.`);
+              }
+              
+              console.log('✅ eSewa payment initiated successfully');
+              console.log('Payment URL:', payment_url);
+              console.log('Form Data:', formData);
+              
+              // Step 3: Submit form to eSewa (as per eSewa documentation)
+              // Simple form submission - eSewa will redirect back to our callback URL
+              const form = document.createElement('form');
+              form.method = 'POST';
+              form.action = payment_url;
+              
+              // Add all form fields from backend
+              Object.keys(formData).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = formData[key];
+                form.appendChild(input);
+              });
+              
+              document.body.appendChild(form);
+              console.log('📤 Submitting form to eSewa...');
+              form.submit(); // This redirects to eSewa
+              
+              // Note: User will be redirected to eSewa, then eSewa will redirect back to
+              // /payment/verify?status=success&oid=...&refId=...&amt=...&pid=...
+              // We don't navigate here - form.submit() handles the redirect
+              
+              // Note: User will be redirected to eSewa, then back to /payment/verify
+              // Don't navigate here as form.submit() will handle the redirect
+            } else {
+              throw new Error('Invalid payment response structure');
+            }
+          } catch (error) {
+            console.error('❌ Failed to initiate eSewa payment:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to initiate eSewa payment. Please try again.';
+            toast.error(errorMessage, { duration: 5000 });
+            
+            // Navigate to success page anyway - order is created, just payment failed
+            navigate('/checkout/success', {
+              state: {
+                order: result.data?.order || null,
+                orderId: orderId,
+                paymentError: true,
+                paymentPending: true,
+                errorMessage: errorMessage,
+              }
+            });
+              }
+            } else {
+          // For non-eSewa payment methods (cash-on-delivery, etc.), navigate to success page
           navigate('/checkout/success', {
             state: {
               order: result.data?.order || null,
               orderId: orderId,
+              isFromOrderPlacement: true,
             }
           });
-        } else {
-          console.error('Cannot navigate: orderId is invalid:', orderId);
-          toast.error("Order created but order ID not found. Please check your orders page.");
-          navigate('/customer/orders'); // Navigate to orders list instead
         }
       }
     } catch (error) {
