@@ -76,7 +76,7 @@ const CheckoutPage = () => {
 
   // Create order mutation
   const createOrderMutation = usePost('orders', API_ENDPOINTS.ORDERS, {
-    showSuccessToast: true,
+    showSuccessToast: false,
     showErrorToast: true,
   });
   const [isProcessing, setIsProcessing] = useState(false);
@@ -378,18 +378,12 @@ const CheckoutPage = () => {
             const errorMessage = error.response?.data?.message || error.message || 'Failed to initiate eSewa payment. Please try again.';
             toast.error(errorMessage, { duration: 5000 });
             
-            // Navigate to success page anyway - order is created, just payment failed
-            navigate('/checkout/success', {
-              state: {
-                order: result.data?.order || null,
-                orderId: orderId,
-                paymentError: true,
-                paymentPending: true,
-                errorMessage: errorMessage,
-              }
-            });
-              }
-            } else {
+            // Stay on checkout page to allow retry
+            // Do NOT navigate to success page
+            setIsProcessing(false);
+            return;
+          }
+        } else {
           // For non-eSewa payment methods (cash-on-delivery, etc.), navigate to success page
           navigate('/checkout/success', {
             state: {
@@ -546,4 +540,3 @@ const CheckoutPage = () => {
 };
 
 export default CheckoutPage;
-

@@ -14,20 +14,79 @@ const PaymentVerifyPage = () => {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Extract payment parameters from URL (eSewa redirects with these)
-    const status = searchParams.get('status'); // 'success' or 'failure'
-    const orderId = searchParams.get('oid'); // eSewa sends orderId as 'oid' in redirect
-    const amount = searchParams.get('amt'); // Amount
-    const refId = searchParams.get('refId'); // eSewa reference ID
+    // Extract payment parameters
+    const data = searchParams.get('data'); // V2: Base64 encoded JSON
     
-    console.log('📥 Payment verification page - Parameters received:', {
-      status,
-      orderId,
-      amount,
-      refId,
-    });
+    // Legacy V1 parameters
+    const status = searchParams.get('status');
+    const orderId = searchParams.get('oid');
+    const amount = searchParams.get('amt');
+    const refId = searchParams.get('refId');
     
-    // Handle payment failure
+    console.log('📥 Payment verification page loaded');
+    
+    // --- V2 Handler ---
+    if (data) {
+      console.log('🔍 Detected V2 Response (Data Param)');
+      
+      const verifyV2 = async () => {
+        try {
+          // Decode for logging/local state (Backend will verify signature)
+          let decoded = {};
+          try {
+            decoded = JSON.parse(atob(data));
+            console.log('📄 Decoded V2 Data:', decoded);
+          } catch (e) {
+            console.error('Failed to decode data locally:', e);
+          }
+          
+          const v2Status = decoded.status;
+          const v2OrderId = decoded.transaction_uuid; // This maps to esewaTransactionId in DB
+          
+          if (v2Status !== 'COMPLETE') {
+             throw new Error('Payment status is not COMPLETE');
+          }
+
+          console.log('🔄 Verifying eSewa V2 payment...');
+          // Pass data string to service
+          const result = await paymentService.verifyEsewaPayment(null, null, null, null, data);
+          
+          if (result?.success) {
+            console.log('✅ Payment verified successfully');
+            navigate('/checkout/success', {
+              state: {
+                order: result.data?.order,
+                orderId: result.data?.order?.orderId || v2OrderId,
+                paymentStatus: 'success',
+                isFromPaymentGateway: true,
+                transactionId: decoded.transaction_code,
+              },
+              replace: true,
+            });
+          } else {
+            throw new Error(result?.message || 'Verification failed');
+          }
+        } catch (error) {
+          console.error('❌ Payment verification error:', error);
+          toast.error(error.response?.data?.message || error.message || 'Failed to verify payment');
+          navigate('/checkout/success', {
+            state: {
+              paymentStatus: 'error',
+              paymentError: true,
+              isFromPaymentGateway: true,
+            },
+            replace: true,
+          });
+        }
+      };
+      verifyV2();
+      return;
+    }
+
+    // --- Legacy V1 Handler ---
+    console.log('🔍 Checking for Legacy V1 Params:', { status, orderId });
+    
+    // Handle payment failure (V1)
     if (status === 'failure') {
       console.error('❌ Payment failed according to eSewa');
       toast.error('Payment was cancelled or failed. Please try again.');
@@ -41,31 +100,19 @@ const PaymentVerifyPage = () => {
       return;
     }
     
-    // Verify payment if we have required parameters
+    // Verify payment (V1)
     if (status === 'success' && orderId && refId && amount) {
       const verifyPayment = async () => {
         try {
-          console.log('🔄 Verifying eSewa payment...', { orderId, amount, refId });
-          
-          // Call backend to verify payment
-          const result = await paymentService.verifyEsewaPayment(
-            orderId,
-            amount,
-            refId
-          );
+          console.log('🔄 Verifying eSewa V1 payment...', { orderId, amount, refId });
+          const result = await paymentService.verifyEsewaPayment(orderId, amount, refId);
           
           if (result?.success) {
-            const verifiedOrder = result.data?.order || null;
-            const paymentStatus = result.data?.paymentStatus || result.data?.order?.paymentStatus;
-            
-            console.log('✅ Payment verified successfully');
-            
-            // Navigate to success page with verified order data
             navigate('/checkout/success', {
               state: {
-                order: verifiedOrder,
+                order: result.data?.order,
                 orderId: orderId,
-                paymentStatus: paymentStatus === 'paid' || paymentStatus === 'success' ? 'success' : 'error',
+                paymentStatus: 'success',
                 isFromPaymentGateway: true,
                 transactionId: refId,
               },
@@ -77,8 +124,6 @@ const PaymentVerifyPage = () => {
         } catch (error) {
           console.error('❌ Payment verification error:', error);
           toast.error(error.response?.data?.message || error.message || 'Failed to verify payment');
-          
-          // Navigate to success page with error
           navigate('/checkout/success', {
             state: {
               orderId: orderId,
@@ -93,8 +138,8 @@ const PaymentVerifyPage = () => {
       
       verifyPayment();
     } else {
-      // Missing required parameters
-      console.error('❌ Missing required payment parameters');
+      // Missing parameters
+      console.error('❌ Missing required payment parameters (V1 or V2)');
       toast.error('Invalid payment response. Missing required parameters.');
       navigate('/checkout/success', {
         state: {

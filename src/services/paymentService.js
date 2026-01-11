@@ -38,27 +38,32 @@ export const initiateEsewaPayment = async (orderId, amount) => {
  * @param {string} signature - Optional signature from eSewa
  * @returns {Promise<Object>} Payment verification response
  */
-export const verifyEsewaPayment = async (orderId, amount, refId, signature = null) => {
+export const verifyEsewaPayment = async (orderId, amount, refId, signature = null, data = null) => {
   try {
     console.log('🔄 Verifying eSewa payment...');
     console.log('Endpoint:', API_ENDPOINTS.ESEWA.VERIFY);
-    console.log('Payload:', { 
-      orderId, 
-      amount: typeof amount === 'string' ? amount : parseFloat(amount), 
-      refId, 
-      hasSignature: !!signature 
-    });
     
-    // Prepare payload according to API documentation
-    const payload = {
-      orderId: String(orderId), // Ensure it's a string
-      amount: typeof amount === 'string' ? amount : String(parseFloat(amount)), // Backend expects string or number
-      refId: String(refId),
-    };
+    let payload = {};
     
-    // Add signature if provided
-    if (signature) {
-      payload.signature = String(signature);
+    // Check if it's V2 (has 'data')
+    if (data) {
+      console.log('Payload Type: V2 (Data string)');
+      payload = { data };
+    } else {
+      console.log('Payload Type: V1 (Legacy)');
+      console.log('Payload:', { orderId, amount, refId, hasSignature: !!signature });
+      
+      // Prepare payload according to API documentation (Legacy)
+      payload = {
+        orderId: String(orderId),
+        amount: typeof amount === 'string' ? amount : String(parseFloat(amount)),
+        refId: String(refId),
+      };
+      
+      // Add signature if provided
+      if (signature) {
+        payload.signature = String(signature);
+      }
     }
     
     const response = await apiClient.post(API_ENDPOINTS.ESEWA.VERIFY, payload);
