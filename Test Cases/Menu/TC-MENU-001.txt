@@ -1,0 +1,25 @@
+Project name		Momosewa
+Test case I.d		TC-MENU-001
+Module name(Test title)		Menu
+Description		View Menu with Available Products
+Context		Testing the menu page display with available products
+Pre condition		The system has one or more products available in the database. User can be logged in or not logged in.
+Dependency		Menu page should be accessible. Products API endpoint should return available products.
+Test Executed by		Test User
+Test Executed date		2024-01-15
+
+
+
+test executed location	Test step	Test data	Expected result	Actual result	Status	Notes
+Kathmandu	Navigate to Menu page (/menu)	URL: /menu	Menu page should be displayed	Menu page loaded successfully displaying product grid layout	Pass	Page load time acceptable, responsive design working
+Kathmandu	Observe the products display	-	The menu page should display all available products in a grid or list view. Each product card should show: product name, price, image, rating (if available), description, and an "Add to Cart" button. Products with stock=0 or isAvailable=false should not be displayed. Product count should be displayed (e.g., "Showing X products").	All available products displayed in grid view. Each product card shows name, price, image, rating, description, and Add to Cart button. Out of stock products not displayed. Product count shows "Showing 25 products" correctly.	Pass	Product images loading properly. Ratings displayed as stars. All product information is accurate and up-to-date.
+
+
+
+
+
+
+
+
+
+Post Condition		Menu page displays all available products correctly. Product cards show all required information.

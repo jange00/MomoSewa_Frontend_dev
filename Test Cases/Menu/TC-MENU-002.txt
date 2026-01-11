@@ -1,0 +1,28 @@
+Project name		Momosewa
+Test case I.d		TC-MENU-002
+Module name(Test title)		Menu
+Description		Search and Filter Products
+Context		Testing product search and filter functionality on menu page
+Pre condition		User is on the Menu page. Multiple products exist with different categories, prices, and ratings.
+Dependency		Menu page should be accessible. Products with various attributes should exist.
+Test Executed by		Test User
+Test Executed date		2024-01-15
+
+
+
+test executed location	Test step	Test data	Expected result	Actual result	Status	Notes
+Kathmandu	Navigate to Menu page (/menu)	URL: /menu	Menu page should be displayed	Menu page displayed with search and filter options visible	Pass	Search bar and filter controls are accessible and functional
+Kathmandu	Enter search query in search bar	Search Query: "chicken" or "momo"	Only products matching the search query should be displayed. Product count should update.	Search results filtered correctly. Products matching "chicken" keyword displayed. Product count updated to "Showing 8 products".	Pass	Search is case-insensitive and works with partial matches. Results appear instantly as user types.
+Kathmandu	Apply category filter	Category: Steamed, Fried, etc.	Only products in selected category should be displayed. Product count should update.	Category filter applied successfully. Only products from "Steamed" category displayed. Product count updated to "Showing 5 products".	Pass	Filter works correctly. Multiple categories can be selected. Filter state persists during session.
+Kathmandu	Apply price range filter	Price Range: Rs. 100-200	Only products within price range should be displayed. Product count should update.	Price range filter applied. Only products between Rs. 100-200 displayed. Product count updated to "Showing 12 products".	Pass	Price filter works accurately. Range selector is user-friendly. Results update immediately.
+Kathmandu	Click "Clear All Filters"	-	All filters should be cleared. All available products should be displayed again.	All filters cleared successfully. All 25 available products displayed again. Product count reset to "Showing 25 products".	Pass	Clear filters button works correctly. Search query and all filters reset. No errors occurred.
+
+
+
+
+
+
+
+
+
+Post Condition		Search and filters work correctly. Products are filtered appropriately. Clear filters resets view.

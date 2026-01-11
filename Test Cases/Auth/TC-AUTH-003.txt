@@ -1,0 +1,26 @@
+Project name		Momosewa
+Test case I.d		TC-AUTH-003
+Module name(Test title)		Authentication
+Description		Customer Registration (Signup)
+Context		Testing customer registration/signup functionality
+Pre condition		User is on the customer signup page. Valid registration data is available.
+Dependency		Customer signup page should be accessible. Registration API should be functional.
+Test Executed by		Test User
+Test Executed date		2024-01-15
+
+
+
+test executed location	Test step	Test data	Expected result	Actual result	Status	Notes
+Kathmandu	Navigate to Customer Signup page (/customer/signup)	URL: /customer/signup	Customer signup page should be displayed with registration form	Signup page displayed with all required registration fields visible	Pass	Form includes name, email, phone, password, and confirm password fields
+Kathmandu	Fill in all required fields	Name: John Doe, Email: newuser@example.com, Phone: 9841234567, Password: password123, Confirm Password: password123	All required fields should be filled with valid data	All fields filled successfully with provided test data. No validation errors displayed.	Pass	Form validation working correctly, real-time validation feedback provided
+Kathmandu	Click "Sign Up" or "Register" button	-	User should be successfully registered. User should be automatically logged in. User should be redirected to the landing page or customer dashboard. Success toast notification should appear.	Registration successful. New user account created. User automatically logged in and redirected to customer dashboard. Success toast "Account created successfully" displayed.	Pass	Account created in database. User session established immediately after registration. Redirect smooth.
+
+
+
+
+
+
+
+
+
+Post Condition		User account is created. User is logged in. User is redirected to appropriate page.

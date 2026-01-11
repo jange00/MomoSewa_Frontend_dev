@@ -1,0 +1,28 @@
+Project name		Momosewa
+Test case I.d		TC-CART-002
+Module name(Test title)		Shopping Cart
+Description		View Cart and Manage Items
+Context		Testing cart viewing and item management functionality
+Pre condition		User is logged in as a customer. User has items in the cart.
+Dependency		User must be authenticated as a customer. Cart must have items. Cart API should be functional.
+Test Executed by		Test User
+Test Executed date		2024-01-15
+
+
+
+test executed location	Test step	Test data	Expected result	Actual result	Status	Notes
+Kathmandu	Navigate to Cart page (/cart)	URL: /cart	Cart page should display all items in the cart. Each cart item should show: product name, image, price, quantity selector (+/- buttons), item subtotal, and remove button.	Cart page displayed all 3 items correctly. Each item shows name, image, price, quantity controls, subtotal, and remove button. Layout is clean and organized.	Pass	All cart items are visible. Product images loading correctly. Price calculations displayed for each item.
+Kathmandu	Increase item quantity using (+) button	Initial quantity: 1, Increase to: 2	Item quantity should increase. Item subtotal should update (price × new quantity). Cart total should update accordingly.	Quantity increased from 1 to 2. Item subtotal updated correctly (Rs. 200 × 2 = Rs. 400). Cart total updated from Rs. 500 to Rs. 700.	Pass	Quantity update is instant. Calculations are accurate. No lag in UI updates.
+Kathmandu	Decrease item quantity using (-) button	Quantity: 2, Decrease to: 1	Item quantity should decrease. Item subtotal should update. Cart total should update.	Quantity decreased from 2 to 1. Item subtotal updated to Rs. 200. Cart total updated to Rs. 500.	Pass	Decrease functionality works correctly. Minimum quantity of 1 enforced. Calculations remain accurate.
+Kathmandu	Click "Remove" button on an item	-	The item should be removed from the cart. A success toast should appear: "Item removed from cart". Cart total should update.	Item removed successfully from cart. Success toast "Item removed from cart" displayed. Cart total updated from Rs. 500 to Rs. 300. Cart now shows 2 items.	Pass	Remove functionality works correctly. Confirmation would be helpful for accidental clicks. Cart state updated immediately.
+Kathmandu	Observe price summary	-	Price summary should show: subtotal, delivery fee (if applicable), discount (if promo code applied), and total amount. All calculations should be accurate.	Price summary displays: Subtotal Rs. 300, Delivery Fee Rs. 50, Discount Rs. 0, Total Rs. 350. All calculations are accurate and match individual item totals.	Pass	Price breakdown is clear and accurate. Delivery fee calculated correctly. Formatting is clean and easy to read.
+
+
+
+
+
+
+
+
+
+Post Condition		Cart items are displayed correctly. Quantity updates work. Item removal works. Price calculations are accurate.

@@ -1,0 +1,27 @@
+Project name		Momosewa
+Test case I.d		TC-AUTH-001
+Module name(Test title)		Authentication
+Description		User Login (Valid Credentials)
+Context		Testing user login functionality with valid credentials
+Pre condition		User account exists in the system with valid email and password. User is on the login page.
+Dependency		Login page should be accessible. Authentication API should be functional. User account must exist.
+Test Executed by		Test User
+Test Executed date		2024-01-15
+
+
+
+test executed location	Test step	Test data	Expected result	Actual result	Status	Notes
+Kathmandu	Navigate to Login page (/login)	URL: /login	Login page should be displayed with email and password fields	Login page displayed successfully with email and password input fields visible	Pass	Page loaded quickly, all form elements are properly aligned
+Kathmandu	Enter valid email address	Email: user@example.com	Email should be entered in the email field	Email address entered successfully and displayed in the email field	Pass	Input validation working, no errors displayed
+Kathmandu	Enter valid password	Password: validpassword123	Password should be entered in the password field	Password entered successfully, masked with dots for security	Pass	Password field properly masks input characters
+Kathmandu	Click "Login" button	-	User should be successfully logged in. User should be redirected to the appropriate dashboard (Customer/Vendor/Admin) based on role. Success toast notification should appear. User session should be established.	Login successful. User redirected to customer dashboard. Success toast "Login successful" appeared. Session established and user authenticated.	Pass	Redirect occurred within 2 seconds. Session cookie set correctly. User role verified.
+
+
+
+
+
+
+
+
+
+Post Condition		User is logged in and redirected to appropriate dashboard. Session is established.

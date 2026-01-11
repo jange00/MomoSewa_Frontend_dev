@@ -1,0 +1,27 @@
+Project name		Momosewa
+Test case I.d		TC-ORD-003
+Module name(Test title)		Order Management
+Description		Update Order Status (Vendor)
+Context		Testing order status update functionality for vendors
+Pre condition		User is logged in as a vendor. Vendor has at least one order assigned to them. Order status is "pending".
+Dependency		User must be authenticated as a vendor. Orders API should be functional. Order status update API should be accessible.
+Test Executed by		Test User
+Test Executed date		2024-01-15
+
+
+
+test executed location	Test step	Test data	Expected result	Actual result	Status	Notes
+Kathmandu	Navigate to Vendor Orders page (/vendor/orders)	URL: /vendor/orders	Vendor orders page should be displayed	Vendor orders page loaded successfully showing assigned orders	Pass	User authenticated as vendor. Vendor orders page accessible. Orders filtered to vendor-specific orders.
+Kathmandu	Click on an order with "pending" status	Order ID: Any pending order	Order details or order card should be displayed	Order details displayed showing order #12345 with pending status. All order information visible including items, customer details, and delivery address.	Pass	Order details are comprehensive. Vendor can see all necessary information to process the order. UI is clear and functional.
+Kathmandu	Update order status to "preparing"	New Status: preparing	Order status should be updated successfully. A success toast should appear (e.g., "Order status updated successfully"). The order status should change from "pending" to "preparing". The order list should refresh to show updated status.	Order status updated successfully from "pending" to "preparing". Success toast "Order status updated successfully" displayed. Order list refreshed automatically. Status badge changed to blue "Preparing" color.	Pass	Status update works correctly. Real-time refresh is smooth. Toast notification provides good user feedback. Status change persisted in database.
+Kathmandu	Update order status through the workflow	Status transitions: preparing -> on-the-way -> delivered	Order status should progress through the workflow correctly. Each status update should be successful.	Status progression successful: Preparing → On the Way → Delivered. Each status update worked correctly. Success toasts displayed for each update. Order list refreshed after each change. Final status is "Delivered" (green badge).	Pass	Workflow progression is smooth and logical. All status transitions work correctly. System prevents invalid status changes. Order completion tracked accurately.
+
+
+
+
+
+
+
+
+
+Post Condition		Order status is updated successfully. Status changes are reflected in the UI. Order workflow progresses correctly.

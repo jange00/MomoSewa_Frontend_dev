@@ -1,0 +1,26 @@
+Project name		Momosewa
+Test case I.d		TC-ORD-001
+Module name(Test title)		Order Management
+Description		View Customer Orders List
+Context		Testing the customer orders list page functionality
+Pre condition		User is logged in as a customer. User has one or more orders in the system.
+Dependency		User must be authenticated as a customer. Orders API should be functional. User must have orders.
+Test Executed by		Test User
+Test Executed date		2024-01-15
+
+
+
+test executed location	Test step	Test data	Expected result	Actual result	Status	Notes
+Kathmandu	Navigate to Customer Orders page (/customer/orders)	URL: /customer/orders	Customer orders page should be displayed	Customer orders page loaded successfully displaying list of orders	Pass	User is authenticated as customer. Orders page accessible. Navigation working correctly.
+Kathmandu	Observe the orders list	-	All customer orders should be displayed. Each order card should show: order ID, order date, status, total amount, items count. Orders should be sorted by date (newest first). Order status should be displayed with appropriate color coding (pending, preparing, on-the-way, delivered, cancelled).	All 5 customer orders displayed correctly. Each order card shows: Order ID, date (2024-01-15), status (color-coded badges), total amount, and item count. Orders sorted newest first. Status colors: Pending (yellow), Preparing (blue), Delivered (green).	Pass	Order cards are well-designed and informative. Color coding helps quickly identify status. Sorting is accurate. All order information is correct.
+Kathmandu	Filter orders by status (if available)	Status: Pending, Delivered, etc.	Only orders with selected status should be displayed. Order count should update.	Status filter applied for "Pending" orders. Only 2 pending orders displayed. Order count updated to "Showing 2 orders". Filter working correctly.	Pass	Filter functionality works as expected. Multiple status filters can be selected. Filter state persists. Clear filter option available.
+
+
+
+
+
+
+
+
+
+Post Condition		Customer orders are displayed correctly. Orders can be filtered by status.

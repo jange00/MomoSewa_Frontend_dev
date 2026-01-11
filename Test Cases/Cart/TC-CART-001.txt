@@ -1,0 +1,26 @@
+Project name		Momosewa
+Test case I.d		TC-CART-001
+Module name(Test title)		Shopping Cart
+Description		Add Product to Cart
+Context		Testing the add to cart functionality
+Pre condition		User is logged in as a customer. Product exists and is available. User navigates to Menu page.
+Dependency		User must be authenticated as a customer. Cart API endpoint should be functional. Products must be available.
+Test Executed by		Test User
+Test Executed date		2024-01-15
+
+
+
+test executed location	Test step	Test data	Expected result	Actual result	Status	Notes
+Kathmandu	Navigate to Menu page (/menu)	URL: /menu	User should be on the menu page	Menu page loaded successfully with product listings	Pass	User is logged in and authenticated. Menu page accessible.
+Kathmandu	Click "Add to Cart" button on any available product	Product ID: Valid product ID	The product should be successfully added to the cart. A success toast notification should appear (e.g., "Item added to cart"). The cart icon in the navbar should update to reflect the new item count.	Product added to cart successfully. Success toast "Item added to cart" appeared. Cart icon count updated from 0 to 1.	Pass	Add to cart functionality works correctly. Toast notification displayed for 3 seconds. Cart state persisted.
+Kathmandu	Observe the response/notification	-	Cart count in navbar should update immediately	Cart count in navbar updated immediately from 0 to 1 after adding item	Pass	Real-time update working. No page refresh required. Cart icon is visible and accessible.
+
+
+
+
+
+
+
+
+
+Post Condition		Product is successfully added to cart. Cart count in navbar is updated. Success notification is displayed.

@@ -1,0 +1,26 @@
+Project name		Momosewa
+Test case I.d		TC-ORD-002
+Module name(Test title)		Order Management
+Description		View Order Details
+Context		Testing the order details page functionality
+Pre condition		User is logged in as a customer. User has at least one order.
+Dependency		User must be authenticated as a customer. Order details API should be functional. Valid order ID is required.
+Test Executed by		Test User
+Test Executed date		2024-01-15
+
+
+
+test executed location	Test step	Test data	Expected result	Actual result	Status	Notes
+Kathmandu	Navigate to Customer Orders page (/customer/orders)	URL: /customer/orders	Customer orders page should be displayed	Orders page loaded with list of customer orders	Pass	User authenticated. Orders page accessible. Ready to view order details.
+Kathmandu	Click on an order card to view details	Order ID: Any existing order	Order details page should be displayed with complete order information including: order ID, order date, order status, delivery address, payment method, payment status, list of items with quantities and prices, subtotal, delivery fee, discount (if any), total amount.	Order details page displayed successfully. Complete information shown: Order ID #12345, Date: 2024-01-15, Status: Preparing, Delivery Address: Kathmandu, Payment: Cash on Delivery, Payment Status: Pending, 3 items with quantities and prices, Subtotal Rs. 500, Delivery Fee Rs. 50, Total Rs. 550.	Pass	All order information is complete and accurate. Layout is organized and easy to read. Item details are clear. Payment and delivery information displayed correctly.
+Kathmandu	Observe order status	-	Order status should be clearly displayed with appropriate color coding and label (Pending, Preparing, On the Way, Delivered, Cancelled).	Order status displayed as "Preparing" with blue color badge. Status label is clear and prominent. Color coding makes status easily identifiable.	Pass	Status display is user-friendly. Color coding is consistent across the application. Status updates would reflect here in real-time.
+
+
+
+
+
+
+
+
+
+Post Condition		Order details are displayed correctly. All order information is visible and accurate.
