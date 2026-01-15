@@ -140,7 +140,7 @@ const PaymentVerifyPage = () => {
     } else {
       // Missing parameters
       console.error('❌ Missing required payment parameters (V1 or V2)');
-      toast.error('Invalid payment response. Missing required parameters.');
+      // toast.error('Invalid payment response. Missing required parameters.');
       navigate('/checkout/success', {
         state: {
           paymentStatus: 'error',

@@ -89,7 +89,7 @@ const CheckoutSuccessPage = () => {
         if (location.state?.paymentStatus === "success") {
           toast.success("Payment successful! Your order has been confirmed.");
         } else if (location.state?.paymentStatus === "error") {
-          toast.error("Payment verification failed. Please contact support.");
+          // toast.error("Payment verification failed. Please contact support.");
         }
       } else {
         // Direct navigation with URL params (bypassing PaymentVerifyPage)
@@ -102,7 +102,7 @@ const CheckoutSuccessPage = () => {
           
           if (!orderIdToVerify) {
             console.error('❌ Order ID not found in payment callback');
-            toast.error("Invalid payment response: Order ID not found");
+            // toast.error("Invalid payment response: Order ID not found");
             setIsVerifying(false);
             setPaymentStatus("error");
             return;
@@ -110,7 +110,7 @@ const CheckoutSuccessPage = () => {
           
           if (!refId) {
             console.error('❌ Reference ID not found in payment callback');
-            toast.error("Invalid payment response: Reference ID not found");
+            // toast.error("Invalid payment response: Reference ID not found");
             setIsVerifying(false);
             setPaymentStatus("error");
             return;
@@ -118,7 +118,7 @@ const CheckoutSuccessPage = () => {
           
           if (!amount) {
             console.error('❌ Amount not found in payment callback');
-            toast.error("Invalid payment response: Amount not found");
+            // toast.error("Invalid payment response: Amount not found");
             setIsVerifying(false);
             setPaymentStatus("error");
             return;
@@ -156,20 +156,20 @@ const CheckoutSuccessPage = () => {
                 toast.success("Payment successful! Your order has been confirmed.");
               } else {
                 setPaymentStatus("error");
-                toast.error("Payment verification failed. Please contact support.");
+                // toast.error("Payment verification failed. Please contact support.");
               }
             } else {
               setPaymentStatus("error");
-              toast.error(result?.message || "Failed to verify payment status");
+              // toast.error(result?.message || "Failed to verify payment status");
             }
           } catch (error) {
             console.error("❌ Payment verification error:", error);
             setPaymentStatus("error");
-            toast.error(
-              error.response?.data?.message || 
-              error.message || 
-              "Failed to verify payment. Please check your order status."
-            );
+            // toast.error(
+            //   error.response?.data?.message || 
+            //   error.message || 
+            //   "Failed to verify payment. Please check your order status."
+            // );
           } finally {
             setIsVerifying(false);
           }
@@ -181,7 +181,7 @@ const CheckoutSuccessPage = () => {
       // Payment failed according to URL status
       setPaymentStatus("error");
       setIsVerifying(false);
-      toast.error("Payment was cancelled or failed. Please try again.");
+      // toast.error("Payment was cancelled or failed. Please try again.");
     } else {
       // No payment params and no order state - show success anyway
       setPaymentStatus("success");

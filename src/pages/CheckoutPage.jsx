@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
+// import toast from "react-hot-toast";
 import { FiArrowLeft, FiCheckCircle } from "react-icons/fi";
 import DeliveryForm from "../features/checkout/components/DeliveryForm";
 import PaymentMethod from "../features/checkout/components/PaymentMethod";
@@ -153,12 +153,12 @@ const CheckoutPage = () => {
   useEffect(() => {
     if (!authLoading) {
       if (!isAuthenticated) {
-        toast.error("Please login to proceed to checkout");
+        // toast.error("Please login to proceed to checkout");
         navigate("/login");
         return;
       }
       if (user?.role && user.role !== USER_ROLES.CUSTOMER) {
-        toast.error("Only customers can checkout");
+        // toast.error("Only customers can checkout");
         navigate("/");
         return;
       }
@@ -202,16 +202,16 @@ const CheckoutPage = () => {
     // Validate address - either selected saved address or all required fields filled
     if (!isAddressValid) {
       if (getMissingFields.length > 0) {
-        toast.error(`Please fill in: ${getMissingFields.join(", ")}`);
+        // toast.error(`Please fill in: ${getMissingFields.join(", ")}`);
       } else {
-        toast.error("Please select a saved address or fill in all required delivery fields");
+        // toast.error("Please select a saved address or fill in all required delivery fields");
       }
       return;
     }
 
     // Validate payment method
     if (!paymentMethod) {
-      toast.error("Please select a payment method");
+      // toast.error("Please select a payment method");
       return;
     }
 
@@ -220,7 +220,7 @@ const CheckoutPage = () => {
     try {
       // Ensure payment method is valid and not empty
       if (!paymentMethod || paymentMethod.trim() === '') {
-        toast.error("Please select a payment method");
+        // toast.error("Please select a payment method");
         setIsProcessing(false);
         return;
       }
@@ -311,7 +311,7 @@ const CheckoutPage = () => {
             resultData: result.data,
             resultDataOrder: result.data?.order,
           });
-          toast.error("Order created but order ID not found. Please check your orders page.");
+          // toast.error("Order created but order ID not found. Please check your orders page.");
           navigate('/customer/orders');
           return;
         }
@@ -327,7 +327,7 @@ const CheckoutPage = () => {
               const { payment_url, formData } = paymentResponse.data;
               
               if (!payment_url || !formData) {
-                throw new Error('Invalid payment response: missing payment_url or formData');
+                // throw new Error('Invalid payment response: missing payment_url or formData');
               }
               
               // Validate payment URL
@@ -376,7 +376,7 @@ const CheckoutPage = () => {
           } catch (error) {
             console.error('❌ Failed to initiate eSewa payment:', error);
             const errorMessage = error.response?.data?.message || error.message || 'Failed to initiate eSewa payment. Please try again.';
-            toast.error(errorMessage, { duration: 5000 });
+            // toast.error(errorMessage, { duration: 5000 });
             
             // Stay on checkout page to allow retry
             // Do NOT navigate to success page
